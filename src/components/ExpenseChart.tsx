@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { Expense } from '../hooks/useExpenses';
-import { format, subDays, eachDayOfInterval, subWeeks, isSameDay, subMonths, eachMonthOfInterval, parseISO } from 'date-fns';
+import { format, subDays, eachDayOfInterval, subWeeks, isSameDay, subMonths, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, cn, parseSafeISO } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ExpenseChartProps {
@@ -20,9 +21,10 @@ const CATEGORY_LABELS: Record<string, string> = {
     bills: 'Servicios',
     shopping: 'Compras',
     other: 'Otro',
+    Ingreso: 'Fondo/Ingreso',
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, currency }: any) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
         const categories = data.categories as Record<string, number>;
@@ -34,12 +36,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     {Object.entries(categories).map(([cat, amount]) => (
                         <div key={cat} className="flex justify-between text-xs">
                             <span className="capitalize text-slate-700">{CATEGORY_LABELS[cat] || cat}</span>
-                            <span className="font-mono text-primary-600">{formatCurrency(amount)}</span>
+                            <span className={cn("font-mono", cat === 'Ingreso' ? "text-emerald-600" : "text-primary-600")}>
+                                {cat === 'Ingreso' ? '+' : '-'}{formatCurrency(amount, currency)}
+                            </span>
                         </div>
                     ))}
                     <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between text-xs font-bold text-slate-950">
-                        <span>Total</span>
-                        <span>{formatCurrency(payload[0].value)}</span>
+                        <span>Balance</span>
+                        <span>{formatCurrency(payload.reduce((acc: number, p: any) => p.dataKey === 'income' ? acc + p.value : acc - p.value, 0), currency)}</span>
                     </div>
                 </div>
             </div>
@@ -49,6 +53,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 'daily' }: ExpenseChartProps) {
+    const { currency } = useSettings();
     const [offset, setOffset] = useState(0); // Weeks or Months offset
 
     const { data, dateRangeLabel } = useMemo(() => {
@@ -67,9 +72,11 @@ export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 
                 dateRangeLabel: `${cap(startStr)} - ${cap(endStr)}`,
                 data: interval.map(date => {
                     const dateStr = format(date, 'yyyy-MM-dd');
-                    const dayExpenses = expenses.filter(e => isSameDay(parseISO(e.date), date));
-                    const total = dayExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-                    const categories = dayExpenses.reduce((acc, curr) => {
+                    const dayItems = expenses.filter(e => isSameDay(parseSafeISO(e.date), date));
+                    const expenseTotal = dayItems.filter(e => (e as any).type !== 'income').reduce((acc, curr) => acc + curr.amount, 0);
+                    const incomeTotal = dayItems.filter(e => (e as any).type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+
+                    const categories = dayItems.reduce((acc, curr) => {
                         acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
                         return acc;
                     }, {} as Record<string, number>);
@@ -82,7 +89,8 @@ export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 
                         date: dateStr,
                         day: capitalizedDay,
                         fullDate: format(date, 'd \'de\' MMMM', { locale: es }),
-                        amount: total,
+                        amount: expenseTotal,
+                        income: incomeTotal,
                         categories
                     };
                 })
@@ -100,10 +108,12 @@ export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 
                 dateRangeLabel: `${cap(startStr)} - ${cap(endStr)}`,
                 data: interval.map(date => {
                     const monthKey = format(date, 'yyyy-MM');
-                    // Filter expenses in this month
-                    const monthExpenses = expenses.filter(e => e.date.startsWith(monthKey));
-                    const total = monthExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-                    const categories = monthExpenses.reduce((acc, curr) => {
+                    // Filter transactions in this month
+                    const monthItems = expenses.filter(e => e.date.startsWith(monthKey));
+                    const expenseTotal = monthItems.filter(e => (e as any).type !== 'income').reduce((acc, curr) => acc + curr.amount, 0);
+                    const incomeTotal = monthItems.filter(e => (e as any).type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+
+                    const categories = monthItems.reduce((acc, curr) => {
                         acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
                         return acc;
                     }, {} as Record<string, number>);
@@ -115,7 +125,8 @@ export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 
                         date: monthKey, // "2024-01"
                         day: capitalizedMonth, // "Ene"
                         fullDate: format(date, 'MMMM yyyy', { locale: es }),
-                        amount: total,
+                        amount: expenseTotal,
+                        income: incomeTotal,
                         categories
                     };
                 })
@@ -161,13 +172,22 @@ export function ExpenseChart({ expenses, selectedDate, onSelectDate, viewMode = 
                             dy={10}
                         />
                         <Tooltip
-                            content={<CustomTooltip />}
+                            content={<CustomTooltip currency={currency} />}
                             cursor={{ fill: 'rgba(251, 195, 138, 0.2)' }}
                         />
-                        <Bar dataKey="amount" radius={[6, 6, 6, 6]} maxBarSize={40}>
+                        <Bar dataKey="income" radius={[6, 6, 0, 0]} maxBarSize={20} stackId="a">
                             {data.map((entry, index) => (
                                 <Cell
-                                    key={`cell-${index}`}
+                                    key={`cell-income-${index}`}
+                                    fill={entry.date === selectedDate ? '#10b981' : '#a7f3d0'}
+                                    className="transition-all duration-300 hover:opacity-100 cursor-pointer"
+                                />
+                            ))}
+                        </Bar>
+                        <Bar dataKey="amount" radius={[0, 0, 6, 6]} maxBarSize={20} stackId="a">
+                            {data.map((entry, index) => (
+                                <Cell
+                                    key={`cell-expense-${index}`}
                                     fill={entry.date === selectedDate ? '#FBC38A' : '#fed7aa'}
                                     className="transition-all duration-300 hover:opacity-100 cursor-pointer"
                                 />

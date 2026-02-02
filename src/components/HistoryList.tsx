@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO, isToday, isYesterday, isSameDay } from 'date-fns';
+import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Expense } from '../hooks/useExpenses';
 import type { Contact } from '../hooks/useContacts';
-import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingBag, Coffee, Car, Receipt, Music, CircleDollarSign, CalendarDays, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { formatCurrency, cn, parseSafeISO } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
+import { ShoppingBag, Coffee, Car, Receipt, Music, CircleDollarSign, CalendarDays, Calendar, Edit2, Trash2, Wallet } from 'lucide-react';
 import { ExpenseEditModal } from './ExpenseEditModal';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -26,6 +27,7 @@ const ICONS: Record<string, React.ReactNode> = {
     bills: <Receipt className="w-4 h-4" />,
     shopping: <ShoppingBag className="w-4 h-4" />,
     other: <CircleDollarSign className="w-4 h-4" />,
+    Ingreso: <Wallet className="w-4 h-4 text-emerald-600" />,
 };
 
 const COLORS: Record<string, string> = {
@@ -35,6 +37,7 @@ const COLORS: Record<string, string> = {
     bills: 'bg-red-500',
     shopping: 'bg-pink-500',
     other: 'bg-stone-500',
+    Ingreso: 'bg-emerald-500',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -56,6 +59,7 @@ export function HistoryList({
     viewMode,
     onViewModeChange
 }: HistoryListProps) {
+    const { currency } = useSettings();
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
@@ -77,14 +81,14 @@ export function HistoryList({
         if (viewMode === 'monthly') {
             return expenses.filter(e => e.date.startsWith(selectedDate));
         }
-        return expenses.filter(e => isSameDay(parseISO(e.date), parseISO(selectedDate)));
+        return expenses.filter(e => isSameDay(parseSafeISO(e.date), parseSafeISO(selectedDate)));
     }, [expenses, selectedDate, viewMode]);
 
     const groupedExpenses = useMemo(() => {
         const groups: Record<string, Expense[]> = {};
 
         filteredExpenses.forEach(expense => {
-            const dateObj = parseISO(expense.date);
+            const dateObj = parseSafeISO(expense.date);
             const key = viewMode === 'daily'
                 ? expense.date
                 : format(dateObj, 'yyyy-MM');
@@ -158,17 +162,19 @@ export function HistoryList({
                         <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-widest pl-1 sticky top-0 bg-background/95 backdrop-blur-md py-2 z-10 w-full flex justify-between items-center">
                             <span>
                                 {viewMode === 'daily' ? (
-                                    isToday(parseISO(group.date))
+                                    isToday(parseSafeISO(group.date))
                                         ? 'Hoy'
-                                        : isYesterday(parseISO(group.date))
+                                        : isYesterday(parseSafeISO(group.date))
                                             ? 'Ayer'
-                                            : format(parseISO(group.date), "d 'de' MMMM", { locale: es })
+                                            : format(parseSafeISO(group.date), "d 'de' MMMM", { locale: es })
                                 ) : (
-                                    format(parseISO(group.date + '-01'), 'MMMM yyyy', { locale: es })
+                                    format(parseSafeISO(group.date), 'MMMM yyyy', { locale: es })
                                 )}
                             </span>
                             <span className="font-mono text-slate-500 font-normal">
-                                {formatCurrency(group.items.reduce((acc, curr) => acc + curr.amount, 0))}
+                                {formatCurrency(group.items.reduce((acc, curr) => {
+                                    return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+                                }, 0), currency)}
                             </span>
                         </h3>
                         <div className="space-y-3">
@@ -193,7 +199,7 @@ export function HistoryList({
                                                 <p className="font-medium text-slate-900">{CATEGORY_LABELS[expense.category] || expense.category}</p>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                                     {viewMode === 'monthly' && (
-                                                        <span className="font-medium text-slate-600">{format(parseISO(expense.date), "d 'de' MMM", { locale: es })}: </span>
+                                                        <span className="font-medium text-slate-600">{format(parseSafeISO(expense.date), "d 'de' MMM", { locale: es })}: </span>
                                                     )}
                                                     <span>{expense.description}</span>
                                                     {expense.isGroup && expense.contactId && (
@@ -205,7 +211,12 @@ export function HistoryList({
                                             </div>
                                         </div>
                                         <div className="text-right flex items-center gap-3">
-                                            <p className="font-semibold text-slate-900">-{formatCurrency(expense.amount)}</p>
+                                            <p className={cn(
+                                                "font-semibold",
+                                                expense.type === 'income' ? "text-emerald-600" : "text-slate-900"
+                                            )}>
+                                                {expense.type === 'income' ? '+' : '-'}{formatCurrency(expense.amount, currency)}
+                                            </p>
                                             {isSelected && canEdit(expense) && (
                                                 <div className="flex gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
                                                     <button

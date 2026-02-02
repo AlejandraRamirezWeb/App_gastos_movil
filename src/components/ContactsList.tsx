@@ -4,6 +4,7 @@ import { ConfirmModal } from './ConfirmModal';
 import type { Contact } from '../hooks/useContacts';
 import type { Expense } from '../hooks/useExpenses';
 import { formatCurrency, cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ContactsListProps {
     contacts: Contact[];
@@ -13,6 +14,7 @@ interface ContactsListProps {
 }
 
 export function ContactsList({ contacts, expenses, onAddContact, onDeleteContact }: ContactsListProps) {
+    const { currency } = useSettings();
     const [newContactName, setNewContactName] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [contactToDelete, setContactToDelete] = useState<string | null>(null);
@@ -122,7 +124,7 @@ export function ContactsList({ contacts, expenses, onAddContact, onDeleteContact
                                     <div className="flex items-center gap-3">
                                         <div className="text-right">
                                             <p className="text-sm font-semibold text-slate-900">
-                                                {formatCurrency(total)}
+                                                {formatCurrency(total, currency)}
                                             </p>
                                             <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total</p>
                                         </div>

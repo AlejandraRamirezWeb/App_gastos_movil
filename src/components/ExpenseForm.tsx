@@ -4,6 +4,7 @@ import type { Expense } from '../hooks/useExpenses';
 import type { Contact } from '../hooks/useContacts';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ExpenseFormProps {
     onAdd: (expense: Omit<Expense, 'id' | 'user_id'>) => void;
@@ -20,6 +21,7 @@ const CATEGORIES = [
 ];
 
 export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
+    const { currency, convertToBase } = useSettings();
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState(CATEGORIES[0].id);
@@ -37,9 +39,10 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             return;
         }
 
-        // Convert to number and then format with dots
+        // Convert to number and then format
         const numberValue = parseInt(rawValue, 10);
-        setAmount(new Intl.NumberFormat('es-CO').format(numberValue));
+        const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+        setAmount(new Intl.NumberFormat(locale).format(numberValue));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -75,7 +78,7 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
 
         const expenseData = {
             date,
-            amount: finalAmount,
+            amount: convertToBase(finalAmount),
             category,
             description: finalDescription,
             ...(isGroup && selectedContactId && {
@@ -100,7 +103,9 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-light text-slate-400 group-focus-within:text-slate-900 transition-colors">$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-light text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                        $
+                    </span>
                     <input
                         type="text"
                         inputMode="numeric"
@@ -256,14 +261,14 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                                     <div className="text-center flex-1">
                                         <p className="text-[10px] text-purple-500 uppercase">Mi parte</p>
                                         <p className="text-sm font-bold text-purple-700">
-                                            {amount ? `$${new Intl.NumberFormat('es-CO').format(Math.round(parseInt(amount.replace(/\D/g, '')) * (splitPercentage / 100)))}` : '$0'}
+                                            {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * (splitPercentage / 100)))}` : '$0'}
                                         </p>
                                     </div>
                                     <div className="w-px h-8 bg-purple-200" />
                                     <div className="text-center flex-1">
                                         <p className="text-[10px] text-slate-500 uppercase">Su parte</p>
                                         <p className="text-sm font-bold text-slate-700">
-                                            {amount ? `$${new Intl.NumberFormat('es-CO').format(Math.round(parseInt(amount.replace(/\D/g, '')) * ((100 - splitPercentage) / 100)))}` : '$0'}
+                                            {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * ((100 - splitPercentage) / 100)))}` : '$0'}
                                         </p>
                                     </div>
                                 </div>

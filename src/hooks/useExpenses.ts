@@ -10,6 +10,7 @@ export interface Expense {
     contactId?: string;
     isGroup?: boolean;
     user_id: string;
+    type?: 'expense' | 'income';
 }
 
 export function useExpenses(userId: string | undefined) {

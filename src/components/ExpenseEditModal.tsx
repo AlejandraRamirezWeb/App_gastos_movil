@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign } from 'lucide-react';
 import type { Expense } from '../hooks/useExpenses';
 import { cn } from '../lib/utils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ExpenseEditModalProps {
     expense: Expense;
@@ -19,8 +20,10 @@ const CATEGORIES = [
 ];
 
 export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalProps) {
+    const { currency, convertToBase } = useSettings();
     const [date, setDate] = useState(expense.date);
-    const [amount, setAmount] = useState(new Intl.NumberFormat('es-CO').format(expense.amount));
+    const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+    const [amount, setAmount] = useState(new Intl.NumberFormat(locale).format(expense.amount));
     const [category, setCategory] = useState(expense.category);
     const [description, setDescription] = useState(expense.description);
 
@@ -33,19 +36,20 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
         }
 
         const numberValue = parseInt(rawValue, 10);
-        setAmount(new Intl.NumberFormat('es-CO').format(numberValue));
+        setAmount(new Intl.NumberFormat(locale).format(numberValue));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const numericAmount = parseInt(amount.replace(/\./g, ''), 10);
+        // Parse formatted string back to number
+        const numericAmount = parseInt(amount.replace(/\D/g, ''), 10);
 
         if (!numericAmount || numericAmount <= 0) return;
 
         onSave(expense.id, {
             date,
-            amount: numericAmount,
+            amount: convertToBase(numericAmount),
             category,
             description
         });
