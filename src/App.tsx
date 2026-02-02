@@ -3,31 +3,52 @@ import { MobileLayout } from './components/layout/MobileLayout';
 import { ExpenseForm } from './components/ExpenseForm';
 import { HistoryList } from './components/HistoryList';
 import { ExpenseChart } from './components/ExpenseChart';
+import { ContactsList } from './components/ContactsList';
+import { Auth } from './components/Auth';
 import { useExpenses } from './hooks/useExpenses';
-import { PlusCircle, History } from 'lucide-react';
-import { cn, formatCurrency } from './lib/utils';
+import { useContacts } from './hooks/useContacts';
+import { useAuth } from './hooks/useAuth';
+import { PlusCircle, History, Users, LogOut } from 'lucide-react';
+import { cn } from './lib/utils';
 
 function App() {
-  const { expenses, addExpense, deleteExpense } = useExpenses();
-  const [activeTab, setActiveTab] = useState<'add' | 'history'>('add');
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
+  const { contacts, loading: contactsLoading, addContact, deleteContact } = useContacts(user?.id);
+  const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
 
-  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  if (authLoading || (user && (expensesLoading || contactsLoading))) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth />;
+  }
 
   return (
     <MobileLayout className="flex flex-col">
       {/* Header */}
       <header className="px-6 pt-12 pb-6 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-950">
-            Mis gastos
-          </h1>
-          <p className="text-sm text-slate-900">Controla tu dinero</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-900 uppercase tracking-wider">Total</p>
-          <p className="text-xl font-mono font-medium text-slate-950">{formatCurrency(totalExpenses)}</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-950">
+              Mis gastos
+            </h1>
+            <p className="text-sm text-slate-900">Controla tu dinero</p>
+          </div>
+          <button
+            onClick={signOut}
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+            title="Cerrar sesión"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
@@ -36,16 +57,12 @@ function App() {
         <div className="min-h-full">
           {activeTab === 'add' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <ExpenseForm onAdd={
-                (expense) => {
-                  addExpense(expense);
-                  // setActiveTab('history'); // Removed per user request
-                  // Actually, user might want to add multiple. I'll just add it.
-                  // Wait, "addExpense" is from hook.
-                }
-              } />
+              <ExpenseForm
+                onAdd={addExpense}
+                contacts={contacts}
+              />
             </div>
-          ) : (
+          ) : activeTab === 'history' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="px-6">
                 <ExpenseChart
@@ -57,10 +74,22 @@ function App() {
               </div>
               <HistoryList
                 expenses={expenses}
+                contacts={contacts}
+                userId={user?.id}
                 selectedDate={selectedDate}
                 onDelete={deleteExpense}
+                onUpdate={updateExpense}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
+              />
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <ContactsList
+                contacts={contacts}
+                expenses={expenses}
+                onAddContact={addContact}
+                onDeleteContact={deleteContact}
               />
             </div>
           )}
@@ -69,7 +98,7 @@ function App() {
 
       {/* Bottom Navigation */}
       <nav className="border-t border-slate-200 bg-background/90 backdrop-blur-lg pb-safe">
-        <div className="grid grid-cols-2 p-2 gap-2">
+        <div className="grid grid-cols-3 p-2 gap-2">
           <button
             onClick={() => setActiveTab('add')}
             className={cn(
@@ -93,6 +122,18 @@ function App() {
           >
             <History className="w-6 h-6 mb-1" />
             <span className="text-[10px] font-medium">Historial</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('contacts')}
+            className={cn(
+              "flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95",
+              activeTab === 'contacts'
+                ? "bg-primary-50 text-primary-600"
+                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            )}
+          >
+            <Users className={cn("w-6 h-6 mb-1", activeTab === 'contacts' && "fill-current")} />
+            <span className="text-[10px] font-medium">Contactos</span>
           </button>
         </div>
       </nav>

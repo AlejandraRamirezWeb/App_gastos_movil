@@ -1,14 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format, parseISO, isToday, isYesterday, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Expense } from '../hooks/useExpenses';
+import type { Contact } from '../hooks/useContacts';
 import { formatCurrency, cn } from '../lib/utils';
-import { ShoppingBag, Coffee, Car, Receipt, Music, CircleDollarSign, CalendarDays, Calendar } from 'lucide-react';
+import { ShoppingBag, Coffee, Car, Receipt, Music, CircleDollarSign, CalendarDays, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { ExpenseEditModal } from './ExpenseEditModal';
+import { ConfirmModal } from './ConfirmModal';
 
 interface HistoryListProps {
     expenses: Expense[];
+    contacts: Contact[];
+    userId?: string;
     selectedDate: string | null;
     onDelete: (id: string) => void;
+    onUpdate: (id: string, updates: Partial<Omit<Expense, 'id'>>) => void;
     viewMode: 'daily' | 'monthly';
     onViewModeChange: (mode: 'daily' | 'monthly') => void;
 }
@@ -40,7 +46,31 @@ const CATEGORY_LABELS: Record<string, string> = {
     other: 'Otro',
 };
 
-export function HistoryList({ expenses, selectedDate, onDelete, viewMode, onViewModeChange }: HistoryListProps) {
+export function HistoryList({
+    expenses,
+    contacts,
+    userId,
+    selectedDate,
+    onDelete,
+    onUpdate,
+    viewMode,
+    onViewModeChange
+}: HistoryListProps) {
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+    const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
+    const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    const getContactName = (contactId?: string) => {
+        if (!contactId) return null;
+        const contact = contacts.find(c => c.id === contactId);
+        return contact?.name;
+    };
+
+    const canEdit = (expense: Expense) => {
+        return expense.user_id === userId || expense.contactId === userId;
+    };
+
     const filteredExpenses = useMemo(() => {
         if (!selectedDate) return expenses;
         // If monthly view and selectedDate is YYYY-MM, filter by prefix
@@ -142,40 +172,92 @@ export function HistoryList({ expenses, selectedDate, onDelete, viewMode, onView
                             </span>
                         </h3>
                         <div className="space-y-3">
-                            {group.items.map(expense => (
-                                <div
-                                    key={expense.id}
-                                    className="group flex items-center justify-between p-4 bg-white border border-slate-200/60 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-sm"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-full ${COLORS[expense.category] || COLORS['other']} bg-opacity-10 flex items-center justify-center text-${COLORS[expense.category]?.replace('bg-', '') || 'slate-400'}`}>
-                                            {ICONS[expense.category] || ICONS['other']}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-slate-900">{CATEGORY_LABELS[expense.category] || expense.category}</p>
-                                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                {viewMode === 'monthly' && (
-                                                    <span className="font-medium text-slate-600">{format(parseISO(expense.date), "d 'de' MMM", { locale: es })}: </span>
-                                                )}
-                                                <span>{expense.description}</span>
+                            {group.items.map(expense => {
+                                const isSelected = selectedExpenseId === expense.id;
+                                return (
+                                    <div
+                                        key={expense.id}
+                                        onClick={() => setSelectedExpenseId(isSelected ? null : expense.id)}
+                                        className={cn(
+                                            "group flex items-center justify-between p-4 bg-white border rounded-2xl transition-all shadow-sm cursor-pointer",
+                                            isSelected
+                                                ? "border-primary-500 bg-primary-50/30 shadow-md"
+                                                : "border-slate-200/60 hover:bg-slate-50 hover:border-slate-300"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-full ${COLORS[expense.category] || COLORS['other']} bg-opacity-10 flex items-center justify-center text-${COLORS[expense.category]?.replace('bg-', '') || 'slate-400'}`}>
+                                                {ICONS[expense.category] || ICONS['other']}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-slate-900">{CATEGORY_LABELS[expense.category] || expense.category}</p>
+                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                    {viewMode === 'monthly' && (
+                                                        <span className="font-medium text-slate-600">{format(parseISO(expense.date), "d 'de' MMM", { locale: es })}: </span>
+                                                    )}
+                                                    <span>{expense.description}</span>
+                                                    {expense.isGroup && expense.contactId && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                                                            👥 {getContactName(expense.contactId)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="text-right flex items-center gap-3">
+                                            <p className="font-semibold text-slate-900">-{formatCurrency(expense.amount)}</p>
+                                            {isSelected && canEdit(expense) && (
+                                                <div className="flex gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingExpense(expense);
+                                                        }}
+                                                        className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors active:scale-95"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setExpenseToDelete(expense.id);
+                                                        }}
+                                                        className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors active:scale-95"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-semibold text-slate-900">-{formatCurrency(expense.amount)}</p>
-                                        <button
-                                            onClick={() => onDelete(expense.id)}
-                                            className="text-[10px] text-red-500/0 group-hover:text-red-500 transition-all"
-                                        >
-                                            Eliminar
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 ))}
             </div>
+
+            <ConfirmModal
+                isOpen={!!expenseToDelete}
+                onClose={() => setExpenseToDelete(null)}
+                onConfirm={() => {
+                    if (expenseToDelete) {
+                        onDelete(expenseToDelete);
+                        setSelectedExpenseId(null); // Deselect the expense after deletion
+                    }
+                    setExpenseToDelete(null);
+                }}
+                title="¿Eliminar gasto?"
+                message="Este registro se borrará permanentemente de tu historial."
+            />
+
+            {editingExpense && (
+                <ExpenseEditModal
+                    expense={editingExpense}
+                    onSave={onUpdate}
+                    onClose={() => setEditingExpense(null)}
+                />
+            )}
         </div>
     );
 }
