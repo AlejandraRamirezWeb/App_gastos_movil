@@ -9,24 +9,35 @@ export function useAuth() {
     useEffect(() => {
         // Check active sessions and sets the user
         supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            setLoading(false); // Set loading to false as soon as we have a session/user
+
+            // Sync profile in background if user exists
+            if (currentUser) {
+                supabase.from('profiles').upsert({
+                    id: currentUser.id,
+                    email: currentUser.email
+                }).then(({ error }) => {
+                    if (error) console.error('useAuth: background profile sync error:', error);
+                    else console.log('useAuth: background profile sync success');
+                });
+            }
         });
 
         // Listen for changes on auth state (sign in, sign out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
+            setLoading(false);
 
             if (currentUser) {
-                // Sync profile for discovery
-                await supabase.from('profiles').upsert({
+                // Sync profile in background
+                supabase.from('profiles').upsert({
                     id: currentUser.id,
                     email: currentUser.email
                 });
             }
-
-            setLoading(false);
         });
 
         return () => subscription.unsubscribe();

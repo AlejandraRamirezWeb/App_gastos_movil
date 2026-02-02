@@ -12,7 +12,10 @@ export function useContacts(userId: string | undefined) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!userId) return;
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
 
         const fetchContacts = async () => {
             console.log('useContacts: Fetching contacts for userId:', userId);
