@@ -1,4 +1,4 @@
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -43,8 +43,8 @@ export function ConfirmModal({
                                 onClose();
                             }}
                             className={`w-full py-3 rounded-xl font-semibold transition-all active:scale-[0.98] ${type === 'danger'
-                                    ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20'
-                                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                                ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-900/20'
+                                : 'bg-amber-600 text-white hover:bg-amber-700'
                                 }`}
                         >
                             {confirmText}

@@ -59,7 +59,7 @@ export function HistoryList({
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+
 
     const getContactName = (contactId?: string) => {
         if (!contactId) return null;

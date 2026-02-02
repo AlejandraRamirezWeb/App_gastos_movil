@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, Save, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign } from 'lucide-react';
 import type { Expense } from '../hooks/useExpenses';
 import { cn } from '../lib/utils';
-import { format } from 'date-fns';
 
 interface ExpenseEditModalProps {
     expense: Expense;
