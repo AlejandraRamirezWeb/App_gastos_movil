@@ -7,7 +7,7 @@ interface FundsManagerProps {
     totalFunds: number;
     currentBalance: number;
     totalExpenses: number;
-    onAddFunds: (amount: number) => void;
+    onAddFunds: (amount: number, description: string) => void;
 }
 
 export function FundsManager({
@@ -18,6 +18,7 @@ export function FundsManager({
 }: FundsManagerProps) {
     const { currency, convertToBase } = useSettings();
     const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,8 +36,9 @@ export function FundsManager({
         e.preventDefault();
         const numericAmount = parseInt(amount.replace(/\D/g, ''), 10);
         if (numericAmount > 0) {
-            onAddFunds(convertToBase(numericAmount));
+            onAddFunds(convertToBase(numericAmount), description);
             setAmount('');
+            setDescription('');
             setIsAdding(false);
         }
     };
@@ -125,8 +127,20 @@ export function FundsManager({
                                     value={amount}
                                     onChange={handleAmountChange}
                                     placeholder="0"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-10 pr-4 text-2xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-10 pr-4 text-2xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-sans"
                                     autoFocus
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider pl-1">
+                                    Nota / Descripción
+                                </label>
+                                <input
+                                    type="text"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="¿De dónde es el dinero?"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
                                 />
                             </div>
                             <button

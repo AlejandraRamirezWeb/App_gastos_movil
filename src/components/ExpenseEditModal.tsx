@@ -47,13 +47,20 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
 
         if (!numericAmount || numericAmount <= 0) return;
 
-        onSave(expense.id, {
-            date,
+        const updates: any = {
             amount: convertToBase(numericAmount),
-            category,
             description
-        });
+        };
 
+        // For income, date maps to created_at in my merge logic
+        if (expense.type === 'income') {
+            updates.created_at = date;
+        } else {
+            updates.date = date;
+            updates.category = category;
+        }
+
+        onSave(expense.id, updates);
         onClose();
     };
 
@@ -74,7 +81,9 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
             >
                 {/* Header */}
                 <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-3xl">
-                    <h2 className="text-xl font-bold text-slate-900">Editar gasto</h2>
+                    <h2 className="text-xl font-bold text-slate-900">
+                        {expense.type === 'income' ? 'Editar ingreso' : 'Editar gasto'}
+                    </h2>
                     <button
                         onClick={onClose}
                         className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
@@ -113,28 +122,30 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
                         />
                     </div>
 
-                    {/* Category Grid */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Categoría</label>
-                        <div className="grid grid-cols-3 gap-3">
-                            {CATEGORIES.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    type="button"
-                                    onClick={() => setCategory(cat.id)}
-                                    className={cn(
-                                        "flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-200 shadow-sm",
-                                        category === cat.id
-                                            ? "bg-primary-50 border-primary-500 text-primary-600 shadow-md"
-                                            : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:border-slate-300"
-                                    )}
-                                >
-                                    <cat.icon className={cn("w-6 h-6 mb-2", category === cat.id ? "text-primary-600" : "text-slate-400")} />
-                                    <span className="text-[10px] font-medium">{cat.label}</span>
-                                </button>
-                            ))}
+                    {/* Category Grid - Hidden for income */}
+                    {expense.type !== 'income' && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Categoría</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {CATEGORIES.map(cat => (
+                                    <button
+                                        key={cat.id}
+                                        type="button"
+                                        onClick={() => setCategory(cat.id)}
+                                        className={cn(
+                                            "flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-200 shadow-sm",
+                                            category === cat.id
+                                                ? "bg-primary-50 border-primary-500 text-primary-600 shadow-md"
+                                                : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:border-slate-300"
+                                        )}
+                                    >
+                                        <cat.icon className={cn("w-6 h-6 mb-2", category === cat.id ? "text-primary-600" : "text-slate-400")} />
+                                        <span className="text-[10px] font-medium">{cat.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Note Input */}
                     <div className="space-y-2">
@@ -143,7 +154,7 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
                             type="text"
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            placeholder="¿En qué gastaste?"
+                            placeholder={expense.type === 'income' ? '¿De dónde es el dinero?' : '¿En qué gastaste?'}
                             className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all shadow-sm"
                         />
                     </div>

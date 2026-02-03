@@ -47,13 +47,13 @@ export function useFunds(userId: string | undefined) {
         fetchFunds();
     }, [userId]);
 
-    const addFunds = async (amount: number) => {
+    const addFunds = async (amount: number, description?: string) => {
         if (!userId) return;
 
         try {
             const { error } = await supabase
                 .from('funds')
-                .insert([{ user_id: userId, amount }]);
+                .insert([{ user_id: userId, amount, description: description || 'Ingreso de fondos' }]);
 
             if (error) {
                 console.warn('useFunds: Could not save to Supabase, saving to localStorage only:', error.message);
@@ -68,6 +68,46 @@ export function useFunds(userId: string | undefined) {
             const newTotal = totalFunds + amount;
             setTotalFunds(newTotal);
             localStorage.setItem(`funds_${userId}`, newTotal.toString());
+        }
+    };
+
+    const updateFund = async (id: string, updates: any) => {
+        if (!userId) return;
+
+        try {
+            const { error } = await supabase
+                .from('funds')
+                .update(updates)
+                .eq('id', id)
+                .eq('user_id', userId);
+
+            if (error) {
+                console.error('useFunds: Error updating fund:', error.message);
+            } else {
+                await fetchFunds();
+            }
+        } catch (e) {
+            console.error('useFunds: Unexpected error updating fund:', e);
+        }
+    };
+
+    const deleteFund = async (id: string) => {
+        if (!userId) return;
+
+        try {
+            const { error } = await supabase
+                .from('funds')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId);
+
+            if (error) {
+                console.error('useFunds: Error deleting fund:', error.message);
+            } else {
+                await fetchFunds();
+            }
+        } catch (e) {
+            console.error('useFunds: Unexpected error deleting fund:', e);
         }
     };
 
@@ -106,6 +146,8 @@ export function useFunds(userId: string | undefined) {
         funds: records,
         loading,
         addFunds,
+        updateFund,
+        deleteFund,
         setInitialFunds,
         refreshFunds: fetchFunds
     };

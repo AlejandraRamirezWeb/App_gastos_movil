@@ -19,7 +19,7 @@ function App() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
   const { contacts, loading: contactsLoading, addContact, deleteContact } = useContacts(user?.id);
-  const { totalFunds, addFunds, funds } = useFunds(user?.id);
+  const { totalFunds, addFunds, funds, updateFund, deleteFund } = useFunds(user?.id);
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -39,7 +39,7 @@ function App() {
       amount: f.amount,
       category: 'Ingreso',
       date: f.created_at,
-      description: 'Ingreso de fondos',
+      description: f.description || 'Ingreso de fondos',
       type: 'income' as const,
       user_id: f.user_id
     }))
@@ -50,6 +50,28 @@ function App() {
     ...t,
     amount: convertFromBase(t.amount)
   })) as Expense[];
+
+  const handleUpdateTransaction = async (id: string, updates: any) => {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+
+    if (transaction.type === 'income') {
+      await updateFund(id, updates);
+    } else {
+      await updateExpense(id, updates);
+    }
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+
+    if (transaction.type === 'income') {
+      await deleteFund(id);
+    } else {
+      await deleteExpense(id);
+    }
+  };
 
   if (authLoading || (user && (expensesLoading || contactsLoading))) {
     return (
@@ -157,8 +179,8 @@ function App() {
                 contacts={contacts}
                 userId={user?.id}
                 selectedDate={selectedDate}
-                onDelete={deleteExpense}
-                onUpdate={updateExpense}
+                onDelete={handleDeleteTransaction}
+                onUpdate={handleUpdateTransaction}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
               />
