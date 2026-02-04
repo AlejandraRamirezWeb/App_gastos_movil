@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign } from 'lucide-react';
+import { X, Save, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Calendar } from 'lucide-react';
 import type { Expense } from '../hooks/useExpenses';
 import { cn } from '../lib/utils';
 import { useSettings } from '../contexts/SettingsContext';
@@ -114,12 +114,15 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
                     {/* Date Input */}
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha</label>
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={e => setDate(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all min-h-[56px] appearance-none shadow-sm"
-                        />
+                        <div className="relative group">
+                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-600 z-10" />
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={e => setDate(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all min-h-[56px] appearance-none shadow-sm accent-orange-600"
+                            />
+                        </div>
                     </div>
 
                     {/* Category Grid - Hidden for income */}

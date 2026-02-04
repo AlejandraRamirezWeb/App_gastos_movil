@@ -18,6 +18,8 @@ interface HistoryListProps {
     onUpdate: (id: string, updates: Partial<Omit<Expense, 'id'>>) => void;
     viewMode: 'daily' | 'monthly';
     onViewModeChange: (mode: 'daily' | 'monthly') => void;
+    selectedCategory: string;
+    onCategoryChange: (category: string) => void;
 }
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -29,6 +31,17 @@ const ICONS: Record<string, React.ReactNode> = {
     other: <CircleDollarSign className="w-4 h-4" />,
     Ingreso: <Wallet className="w-4 h-4 text-emerald-600" />,
 };
+
+const CATEGORIES = [
+    { id: 'all', label: 'Todos', icon: Calendar },
+    { id: 'food', label: 'Comida', icon: Coffee },
+    { id: 'transport', label: 'Transporte', icon: Car },
+    { id: 'entertainment', label: 'Diversión', icon: Music },
+    { id: 'bills', label: 'Servicios', icon: Receipt },
+    { id: 'shopping', label: 'Compras', icon: ShoppingBag },
+    { id: 'other', label: 'Otro', icon: CircleDollarSign },
+    { id: 'income', label: 'Ingresos', icon: Wallet },
+];
 
 const COLORS: Record<string, string> = {
     food: 'bg-orange-500',
@@ -57,7 +70,9 @@ export function HistoryList({
     onDelete,
     onUpdate,
     viewMode,
-    onViewModeChange
+    onViewModeChange,
+    selectedCategory,
+    onCategoryChange
 }: HistoryListProps) {
     const { currency } = useSettings();
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -76,13 +91,26 @@ export function HistoryList({
     };
 
     const filteredExpenses = useMemo(() => {
-        if (!selectedDate) return expenses;
-        // If monthly view and selectedDate is YYYY-MM, filter by prefix
-        if (viewMode === 'monthly') {
-            return expenses.filter(e => e.date.startsWith(selectedDate));
+        let result = expenses;
+
+        if (selectedDate) {
+            if (viewMode === 'monthly') {
+                result = result.filter(e => e.date.startsWith(selectedDate));
+            } else {
+                result = result.filter(e => isSameDay(parseSafeISO(e.date), parseSafeISO(selectedDate)));
+            }
         }
-        return expenses.filter(e => isSameDay(parseSafeISO(e.date), parseSafeISO(selectedDate)));
-    }, [expenses, selectedDate, viewMode]);
+
+        if (selectedCategory !== 'all') {
+            if (selectedCategory === 'income') {
+                result = result.filter(e => e.type === 'income');
+            } else {
+                result = result.filter(e => e.category === selectedCategory);
+            }
+        }
+
+        return result;
+    }, [expenses, selectedDate, viewMode, selectedCategory]);
 
     const groupedExpenses = useMemo(() => {
         const groups: Record<string, Expense[]> = {};
@@ -118,11 +146,33 @@ export function HistoryList({
                         </button>
                     </div>
                 </div>
+
+                {/* Category Filter */}
+                <div className="px-6 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2 pb-2">
+                        {CATEGORIES.map(cat => (
+                            <button
+                                key={cat.id}
+                                onClick={() => onCategoryChange(cat.id)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all border",
+                                    selectedCategory === cat.id
+                                        ? "bg-primary-600 text-white border-primary-600 shadow-sm"
+                                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                                )}
+                            >
+                                <cat.icon className="w-3 h-3" />
+                                {cat.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="p-8 text-center text-slate-500">
                     <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Receipt className="w-8 h-8 opacity-20" />
                     </div>
-                    <p className="text-sm">Aún no hay gastos</p>
+                    <p className="text-sm">Aún no hay registros</p>
                 </div>
             </div>
         );
@@ -153,6 +203,27 @@ export function HistoryList({
                         <Calendar className="w-3 h-3" />
                         Por mes
                     </button>
+                </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="px-6 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2 pb-2">
+                    {CATEGORIES.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => onCategoryChange(cat.id)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all border",
+                                selectedCategory === cat.id
+                                    ? "bg-primary-600 text-white border-primary-600 shadow-sm"
+                                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                            )}
+                        >
+                            <cat.icon className="w-3 h-3" />
+                            {cat.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -262,13 +333,15 @@ export function HistoryList({
                 message="Este registro se borrará permanentemente de tu historial."
             />
 
-            {editingExpense && (
-                <ExpenseEditModal
-                    expense={editingExpense}
-                    onSave={onUpdate}
-                    onClose={() => setEditingExpense(null)}
-                />
-            )}
+            {
+                editingExpense && (
+                    <ExpenseEditModal
+                        expense={editingExpense}
+                        onSave={onUpdate}
+                        onClose={() => setEditingExpense(null)}
+                    />
+                )
+            }
         </div>
     );
 }

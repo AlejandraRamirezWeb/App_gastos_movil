@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Users } from 'lucide-react';
+import { Plus, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Users, Calendar } from 'lucide-react';
 import type { Expense } from '../hooks/useExpenses';
 import type { Contact } from '../hooks/useContacts';
 import { cn } from '../lib/utils';
@@ -97,13 +97,12 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 px-6 pt-6 pb-24">
+        <form onSubmit={handleSubmit} className="space-y-7 px-6 pt-5 pb-20">
 
-            {/* Amount Input */}
-            <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Monto</label>
+            <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-light text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-light text-slate-400 group-focus-within:text-slate-900 transition-colors">
                         $
                     </span>
                     <input
@@ -112,60 +111,63 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                         value={amount}
                         onChange={handleAmountChange}
                         placeholder="0"
-                        className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-10 pr-4 text-3xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all font-sans shadow-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-2xl font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all font-sans shadow-sm"
                         autoFocus
                     />
                 </div>
             </div>
 
-            {/* Date Input */}
-            <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha</label>
-                <input
-                    type="date"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all min-h-[56px] appearance-none shadow-sm"
-                />
+            {/* Date and Note in Row */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Fecha</label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-600 z-10" />
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={e => setDate(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-9 pr-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none shadow-sm accent-orange-600"
+                        />
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Nota</label>
+                    <input
+                        type="text"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        placeholder="¿En qué?"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3 px-3 text-xs text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all shadow-sm"
+                    />
+                </div>
             </div>
 
             {/* Category Grid */}
             <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Categoría</label>
-                <div className="grid grid-cols-3 gap-3">
+                <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Categoría</label>
+                <div className="grid grid-cols-3 gap-x-2 gap-y-4">
                     {CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
                             type="button"
                             onClick={() => setCategory(cat.id)}
                             className={cn(
-                                "flex flex-col items-center justify-center p-3 rounded-2xl border transition-all duration-200 shadow-sm",
+                                "flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 shadow-sm",
                                 category === cat.id
-                                    ? "bg-primary-50 border-primary-500 text-primary-600 shadow-md"
+                                    ? "bg-primary-50 border-primary-500 text-primary-600 shadow-sm"
                                     : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:border-slate-300"
                             )}
                         >
-                            <cat.icon className={cn("w-6 h-6 mb-2", category === cat.id ? "text-primary-600" : "text-slate-400")} />
-                            <span className="text-[10px] font-medium">{cat.label}</span>
+                            <cat.icon className={cn("w-5 h-5 mb-1", category === cat.id ? "text-primary-600" : "text-slate-400")} />
+                            <span className="text-[9px] font-medium">{cat.label}</span>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Note Input */}
-            <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Nota (Opcional)</label>
-                <input
-                    type="text"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="¿En qué gastaste?"
-                    className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-4 text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all shadow-sm"
-                />
-            </div>
-
             {/* Group Expense Toggle */}
-            <div className="space-y-3">
+            <div className="space-y-2">
                 <button
                     type="button"
                     onClick={() => {
@@ -173,51 +175,46 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                         if (isGroup) setSelectedContactId('');
                     }}
                     className={cn(
-                        "w-full flex items-center justify-between p-4 rounded-2xl border transition-all shadow-sm",
+                        "w-full flex items-center justify-between p-3 rounded-xl border transition-all shadow-sm",
                         isGroup
                             ? "bg-purple-50 border-purple-500 text-purple-700"
                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     )}
                 >
-                    <div className="flex items-center gap-3">
-                        <Users className={cn("w-5 h-5", isGroup ? "text-purple-600" : "text-slate-400")} />
+                    <div className="flex items-center gap-2">
+                        <Users className={cn("w-4 h-4", isGroup ? "text-purple-600" : "text-slate-400")} />
                         <div className="text-left">
-                            <p className="font-medium text-sm">Gasto grupal</p>
-                            <p className="text-xs opacity-75">Compartir con un contacto</p>
+                            <p className="font-medium text-xs">Gasto grupal</p>
                         </div>
                     </div>
                     <div className={cn(
-                        "w-12 h-7 rounded-full transition-all relative",
+                        "w-9 h-5 rounded-full transition-all relative",
                         isGroup ? "bg-purple-600" : "bg-slate-300"
                     )}>
                         <div className={cn(
-                            "absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm",
-                            isGroup ? "right-1" : "left-1"
+                            "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                            isGroup ? "right-0.5" : "left-0.5"
                         )} />
                     </div>
                 </button>
 
                 {/* Contact Selector & Split Slider */}
                 {isGroup && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-purple-700 uppercase tracking-wider block">
-                                ¿Con quién compartes?
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-purple-50/50 p-3 rounded-xl border border-purple-100">
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-semibold text-purple-700 uppercase tracking-wider block">
+                                ¿Con quién?
                             </label>
                             {contacts.length === 0 ? (
-                                <div className="bg-white/50 border border-purple-100 rounded-xl p-3 text-center">
-                                    <p className="text-xs text-purple-600">
-                                        No hay contactos. Ve a la pestaña de Contactos para añadir uno.
-                                    </p>
-                                </div>
+                                <p className="text-[10px] text-purple-600 text-center">No hay contactos</p>
                             ) : (
                                 <select
                                     value={selectedContactId}
                                     onChange={e => setSelectedContactId(e.target.value)}
-                                    className="w-full bg-white border border-purple-200 rounded-xl py-3 px-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all shadow-sm appearance-none font-medium"
+                                    className="w-full bg-white border border-purple-200 rounded-lg py-2 px-3 text-xs text-slate-900 transition-all shadow-sm appearance-none font-medium text-center"
                                     required={isGroup}
                                 >
-                                    <option value="">Selecciona un contacto</option>
+                                    <option value="">Selecciona</option>
                                     {contacts.map(contact => (
                                         <option key={contact.id} value={contact.id}>
                                             {contact.name}
@@ -228,49 +225,30 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                         </div>
 
                         {selectedContactId && (
-                            <div className="space-y-4 pt-2 border-t border-purple-100">
-                                <div className="flex justify-between items-end">
-                                    <label className="text-xs font-semibold text-purple-700 uppercase tracking-wider">
-                                        División del gasto
-                                    </label>
-                                    <div className="text-right">
-                                        <span className="text-sm font-bold text-purple-700">{splitPercentage}%</span>
-                                        <span className="text-[10px] text-purple-400 mx-1">/</span>
-                                        <span className="text-sm font-bold text-slate-500">{100 - splitPercentage}%</span>
-                                    </div>
+                            <div className="space-y-3 pt-1 border-t border-purple-100">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-purple-700">Tú: {splitPercentage}%</span>
+                                    <span className="text-[10px] font-bold text-slate-500">Ellos: {100 - splitPercentage}%</span>
                                 </div>
 
-                                <div className="relative pt-1">
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="100"
-                                        step="5"
-                                        value={splitPercentage}
-                                        onChange={(e) => setSplitPercentage(parseInt(e.target.value))}
-                                        className="w-full h-2 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                                    />
-                                    <div className="flex justify-between mt-2 text-[10px] font-medium text-purple-400">
-                                        <span>Yo pago todo</span>
-                                        <span>Mitad y mitad</span>
-                                        <span>Paga todo {contacts.find(c => c.id === selectedContactId)?.name.split(' ')[0]}</span>
-                                    </div>
-                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    step="5"
+                                    value={splitPercentage}
+                                    onChange={(e) => setSplitPercentage(parseInt(e.target.value))}
+                                    className="w-full h-1.5 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                />
 
-                                <div className="bg-purple-600/5 rounded-xl p-3 flex justify-between items-center">
-                                    <div className="text-center flex-1">
-                                        <p className="text-[10px] text-purple-500 uppercase">Mi parte</p>
-                                        <p className="text-sm font-bold text-purple-700">
-                                            {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * (splitPercentage / 100)))}` : '$0'}
-                                        </p>
-                                    </div>
-                                    <div className="w-px h-8 bg-purple-200" />
-                                    <div className="text-center flex-1">
-                                        <p className="text-[10px] text-slate-500 uppercase">Su parte</p>
-                                        <p className="text-sm font-bold text-slate-700">
-                                            {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * ((100 - splitPercentage) / 100)))}` : '$0'}
-                                        </p>
-                                    </div>
+                                <div className="bg-white/60 rounded-lg p-2 flex justify-between items-center text-[11px] font-bold">
+                                    <span className="text-purple-700">
+                                        {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * (splitPercentage / 100)))}` : '$0'}
+                                    </span>
+                                    <div className="w-px h-4 bg-purple-200" />
+                                    <span className="text-slate-700">
+                                        {amount ? `$${new Intl.NumberFormat(currency === 'COP' ? 'es-CO' : 'en-AU').format(Math.round(parseInt(amount.replace(/\D/g, '')) * ((100 - splitPercentage) / 100)))}` : '$0'}
+                                    </span>
                                 </div>
                             </div>
                         )}
@@ -281,9 +259,9 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             <button
                 type="submit"
                 disabled={isGroup && !selectedContactId}
-                className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-primary-900/20 disabled:shadow-none"
+                className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-primary-900/10 disabled:shadow-none mt-2"
             >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Agregar gasto
             </button>
         </form>

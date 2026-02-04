@@ -25,6 +25,7 @@ function App() {
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
   const { currency, setCurrency, convertFromBase } = useSettings();
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Math Conversion
   const totalExpenses = convertFromBase(expenses.reduce((acc, curr) => acc + curr.amount, 0));
@@ -155,7 +156,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto scrollbar-hide bg-slate-50">
+      <main className="flex-1 overflow-y-auto scrollbar-hide bg-slate-50 pb-24">
         <div className="min-h-full">
           {activeTab === 'add' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -168,7 +169,10 @@ function App() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="px-6">
                 <ExpenseChart
-                  expenses={convertedTransactions}
+                  expenses={convertedTransactions.filter(t =>
+                    selectedCategory === 'all' ? true :
+                      selectedCategory === 'income' ? t.type === 'income' : t.category === selectedCategory
+                  )}
                   selectedDate={selectedDate}
                   onSelectDate={(date) => setSelectedDate(selectedDate === date ? null : date)}
                   viewMode={viewMode}
@@ -183,6 +187,8 @@ function App() {
                 onUpdate={handleUpdateTransaction}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
               />
             </div>
           ) : activeTab === 'funds' ? (
@@ -208,7 +214,7 @@ function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="border-t border-slate-200 bg-background/90 backdrop-blur-lg pb-safe">
+      <nav className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md border-t border-slate-200 bg-background/95 backdrop-blur-lg pb-safe z-30">
         <div className="grid grid-cols-4 p-2 gap-2">
           <button
             onClick={() => setActiveTab('add')}
