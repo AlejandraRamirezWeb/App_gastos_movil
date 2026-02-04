@@ -67,16 +67,18 @@ export function CustomDatePicker({ value, onChange, label }: CustomDatePickerPro
     };
 
     return (
-        <div className="relative">
-            {label && <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1.5 block leading-none">{label}</label>}
-            <button
-                type="button"
-                onClick={openPicker}
-                className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all shadow-sm flex items-center gap-2"
-            >
-                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-600" />
-                {format(selectedDate, "d 'de' MMMM, yyyy", { locale: es })}
-            </button>
+        <div className="space-y-1.5">
+            {label && <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider block">{label}</label>}
+            <div className="relative group">
+                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-600 z-10" />
+                <button
+                    type="button"
+                    onClick={openPicker}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all shadow-sm flex items-center gap-2"
+                >
+                    {format(selectedDate, "d 'de' MMMM, yyyy", { locale: es })}
+                </button>
+            </div>
 
             {isOpen && (
                 <>

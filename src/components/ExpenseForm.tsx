@@ -119,20 +119,20 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             </div>
 
             {/* Date and Note in Row */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 items-end">
                 <CustomDatePicker
                     label="Fecha"
                     value={date}
                     onChange={setDate}
                 />
                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Nota</label>
+                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider block">Nota</label>
                     <input
                         type="text"
                         value={description}
                         onChange={e => setDescription(e.target.value)}
                         placeholder="¿En qué?"
-                        className="w-full bg-white border border-slate-200 rounded-xl py-3 px-3 text-xs text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all shadow-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3 px-3 text-xs text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all shadow-sm h-[42px]"
                     />
                 </div>
             </div>
