@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Users, Calendar } from 'lucide-react';
+import { Plus, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Users } from 'lucide-react';
 import type { Expense } from '../hooks/useExpenses';
 import type { Contact } from '../hooks/useContacts';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
+import { CustomDatePicker } from './CustomDatePicker';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface ExpenseFormProps {
@@ -119,18 +120,11 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
 
             {/* Date and Note in Row */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Fecha</label>
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-600 z-10" />
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={e => setDate(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-9 pr-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none shadow-sm accent-slate-950"
-                        />
-                    </div>
-                </div>
+                <CustomDatePicker
+                    label="Fecha"
+                    value={date}
+                    onChange={setDate}
+                />
                 <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Nota</label>
                     <input
