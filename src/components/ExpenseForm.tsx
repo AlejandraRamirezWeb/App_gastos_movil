@@ -127,7 +127,7 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                             type="date"
                             value={date}
                             onChange={e => setDate(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-9 pr-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none shadow-sm accent-orange-600"
+                            className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-9 pr-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none shadow-sm accent-slate-950"
                         />
                     </div>
                 </div>

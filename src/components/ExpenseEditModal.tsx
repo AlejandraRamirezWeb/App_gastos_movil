@@ -120,7 +120,7 @@ export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalP
                                 type="date"
                                 value={date}
                                 onChange={e => setDate(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all min-h-[56px] appearance-none shadow-sm accent-orange-600"
+                                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all min-h-[56px] appearance-none shadow-sm accent-slate-950"
                             />
                         </div>
                     </div>
