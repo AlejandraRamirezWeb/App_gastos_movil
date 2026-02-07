@@ -31,16 +31,21 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
     const [selectedContactId, setSelectedContactId] = useState<string>('');
     const [splitPercentage, setSplitPercentage] = useState(50);
 
-    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Remove non-numeric chars
-        const rawValue = e.target.value.replace(/\D/g, '');
+    // Función para solicitar el anuncio a la app nativa (Median/AdMob)
+    const solicitarAnuncioAdMob = () => {
+        // Verificamos si estamos dentro de la app móvil mediante el User Agent
+        if (navigator.userAgent.includes('median')) {
+            // Comando nativo para mostrar el anuncio intersticial configurado
+            window.location.href = "gonative://admob/interstitial/show";
+        }
+    };
 
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value.replace(/\D/g, '');
         if (rawValue === '') {
             setAmount('');
             return;
         }
-
-        // Convert to number and then format
         const numberValue = parseInt(rawValue, 10);
         const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
         setAmount(new Intl.NumberFormat(locale).format(numberValue));
@@ -48,31 +53,21 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('ExpenseForm: handleSubmit called');
 
-        // Parse the formatted string back to number
-        // We remove everything that is not a digit to be safe across different separators
         const cleanedAmount = amount.replace(/\D/g, '');
         const numericAmount = parseInt(cleanedAmount, 10);
 
-        console.log('ExpenseForm: amount raw:', amount, 'cleaned:', cleanedAmount, 'numeric:', numericAmount);
-
         if (!numericAmount || numericAmount <= 0) {
-            console.warn('ExpenseForm: Invalid amount, returning');
             return;
         }
 
-        // Calculate split description and adjusted amount
         let finalDescription = description;
         let finalAmount = numericAmount;
 
         if (isGroup && selectedContactId) {
             const mySharePercent = splitPercentage;
             const theirSharePercent = 100 - splitPercentage;
-
-            // Calculate my share in currency
             finalAmount = Math.round(numericAmount * (mySharePercent / 100));
-
             const splitNote = `(Total: ${amount} | División: ${mySharePercent}%/${theirSharePercent}%)`;
             finalDescription = description ? `${description} ${splitNote}` : splitNote;
         }
@@ -88,9 +83,13 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             })
         };
 
-        console.log('ExpenseForm: Calling onAdd with', expenseData);
+        // Ejecutar la adición del gasto
         onAdd(expenseData);
 
+        // DISPARAR ANUNCIO: Justo después de agregar el gasto
+        solicitarAnuncioAdMob();
+
+        // Limpiar formulario
         setAmount('');
         setDescription('');
         setIsGroup(false);
@@ -118,7 +117,6 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                 </div>
             </div>
 
-            {/* Date and Note in Row */}
             <div className="grid grid-cols-2 gap-4 items-end">
                 <CustomDatePicker
                     label="Fecha"
@@ -137,7 +135,6 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                 </div>
             </div>
 
-            {/* Category Grid */}
             <div className="space-y-2">
                 <label className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Categoría</label>
                 <div className="grid grid-cols-3 gap-x-2 gap-y-4">
@@ -160,7 +157,6 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                 </div>
             </div>
 
-            {/* Group Expense Toggle */}
             <div className="space-y-2">
                 <button
                     type="button"
@@ -192,7 +188,6 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
                     </div>
                 </button>
 
-                {/* Contact Selector & Split Slider */}
                 {isGroup && (
                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-purple-50/50 p-3 rounded-xl border border-purple-100">
                         <div className="space-y-1">

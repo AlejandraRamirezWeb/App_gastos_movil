@@ -14,12 +14,18 @@ import { ReceiptText, History, Users, LogOut, Settings, Wallet } from 'lucide-re
 import { cn } from './lib/utils';
 import { useSettings } from './contexts/SettingsContext';
 import { FundsManager } from './components/FundsManager';
+// 1. Importamos el hook de AdMob
+import { useAdMob } from './hooks/useAdMob';
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
   const { contacts, loading: contactsLoading, addContact, deleteContact } = useContacts(user?.id);
   const { totalFunds, addFunds, funds, updateFund, deleteFund } = useFunds(user?.id);
+
+  // 2. Inicializamos el hook de publicidad
+  const { showInterstitial } = useAdMob();
+
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -51,6 +57,15 @@ function App() {
     ...t,
     amount: convertFromBase(t.amount)
   })) as Expense[];
+
+  // 3. Wrapper para interceptar el guardado de gastos e inyectar publicidad
+  const handleAddExpenseWithAd = async (expense: any) => {
+    // Primero guardamos el gasto (lógica original)
+    await addExpense(expense);
+
+    // Después de guardar exitosamente, mostramos el anuncio
+    showInterstitial();
+  };
 
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
@@ -161,7 +176,7 @@ function App() {
           {activeTab === 'add' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <ExpenseForm
-                onAdd={addExpense}
+                onAdd={handleAddExpenseWithAd} // 4. Usamos la función con publicidad aquí
                 contacts={contacts}
               />
             </div>
@@ -270,4 +285,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 
