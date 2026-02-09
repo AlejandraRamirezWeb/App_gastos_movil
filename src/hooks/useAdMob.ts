@@ -1,29 +1,16 @@
-// src/hooks/useAdMob.ts
-
-// Extendemos la interfaz Window para que TypeScript no marque error con 'median'
-declare global {
-    interface Window {
-        median?: any;
-    }
-}
-
 export const useAdMob = () => {
-
-    // Función para mostrar el anuncio intersticial
     const showInterstitial = () => {
-        if (window.median) {
-            // Si estamos dentro de la App generada por Median
-            console.log("Intentando mostrar anuncio intersticial...");
+        // Detectamos si estamos en la app móvil (Median/GoNative)
+        const isMobileApp = navigator.userAgent.includes('median') ||
+            navigator.userAgent.includes('gonative');
 
-            // Esta función verifica si el anuncio está precargado y lo muestra
-            window.median.admob?.showInterstitialIfReady();
+        if (isMobileApp) {
+            console.log("Comando enviado: gonative://admob/interstitial/show");
+            window.location.href = "gonative://admob/interstitial/show";
         } else {
-            // Si estamos en el navegador web (pruebas locales)
-            console.log("Simulación Web: Aquí se mostraría un anuncio Intersticial");
+            console.log("Simulación: Anuncio solicitado (Solo visible en APK)");
         }
     };
 
-    return {
-        showInterstitial
-    };
+    return { showInterstitial };
 };

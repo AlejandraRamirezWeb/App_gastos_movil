@@ -79,7 +79,6 @@ export function HistoryList({
     const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
-
     const getContactName = (contactId?: string) => {
         if (!contactId) return null;
         const contact = contacts.find(c => c.id === contactId);
@@ -87,7 +86,7 @@ export function HistoryList({
     };
 
     const canEdit = (expense: Expense) => {
-        return expense.user_id === userId || expense.contactId === userId;
+        return expense.user_id === userId;
     };
 
     const filteredExpenses = useMemo(() => {
@@ -139,7 +138,7 @@ export function HistoryList({
                 <div className="px-6 pt-2">
                     <div className="flex p-1 bg-slate-100 rounded-xl">
                         <button onClick={() => onViewModeChange('daily')} className={cn("flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2", viewMode === 'daily' ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
-                            <CalendarDays className="w-3 h-3" /> Por dia
+                            <CalendarDays className="w-3 h-3" /> Por día
                         </button>
                         <button onClick={() => onViewModeChange('monthly')} className={cn("flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2", viewMode === 'monthly' ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                             <Calendar className="w-3 h-3" /> Por mes
@@ -147,7 +146,6 @@ export function HistoryList({
                     </div>
                 </div>
 
-                {/* Category Filter */}
                 <div className="px-6 overflow-x-auto scrollbar-hide">
                     <div className="flex gap-2 pb-2">
                         {CATEGORIES.map(cat => (
@@ -180,7 +178,6 @@ export function HistoryList({
 
     return (
         <div className="space-y-6">
-            {/* View Toggle */}
             <div className="px-6">
                 <div className="flex p-1 bg-slate-100 rounded-xl">
                     <button
@@ -191,7 +188,7 @@ export function HistoryList({
                         )}
                     >
                         <CalendarDays className="w-3 h-3" />
-                        Por dia
+                        Por día
                     </button>
                     <button
                         onClick={() => onViewModeChange('monthly')}
@@ -206,7 +203,6 @@ export function HistoryList({
                 </div>
             </div>
 
-            {/* Category Filter */}
             <div className="px-6 overflow-x-auto scrollbar-hide">
                 <div className="flex gap-2 pb-2">
                     {CATEGORIES.map(cat => (
@@ -263,17 +259,25 @@ export function HistoryList({
                                         )}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-full ${COLORS[expense.category] || COLORS['other']} bg-opacity-10 flex items-center justify-center text-${COLORS[expense.category]?.replace('bg-', '') || 'slate-400'}`}>
-                                                {ICONS[expense.category] || ICONS['other']}
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-full flex items-center justify-center",
+                                                COLORS[expense.category] || COLORS['other'],
+                                                "bg-opacity-10"
+                                            )}>
+                                                <div className={cn("text-current", expense.type === 'income' ? "text-emerald-600" : "")}>
+                                                    {expense.type === 'income' ? ICONS['Ingreso'] : (ICONS[expense.category] || ICONS['other'])}
+                                                </div>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-slate-900">{CATEGORY_LABELS[expense.category] || expense.category}</p>
+                                                <p className="font-medium text-slate-900">
+                                                    {expense.type === 'income' ? 'Ingreso' : (CATEGORY_LABELS[expense.category] || expense.category)}
+                                                </p>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                                     {viewMode === 'monthly' && (
                                                         <span className="font-medium text-slate-600">{format(parseSafeISO(expense.date), "d 'de' MMM", { locale: es })}: </span>
                                                     )}
-                                                    <span>{expense.description}</span>
-                                                    {expense.isGroup && expense.contactId && (
+                                                    <span className="max-w-[120px] truncate">{expense.description}</span>
+                                                    {expense.isGroup && (expense.contactId || expense.shared_with_user_id) && (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
                                                             👥 {getContactName(expense.contactId)}
                                                         </span>
@@ -288,6 +292,7 @@ export function HistoryList({
                                             )}>
                                                 {expense.type === 'income' ? '+' : '-'}{formatCurrency(expense.amount, currency)}
                                             </p>
+
                                             {isSelected && canEdit(expense) && (
                                                 <div className="flex gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
                                                     <button
@@ -325,23 +330,21 @@ export function HistoryList({
                 onConfirm={() => {
                     if (expenseToDelete) {
                         onDelete(expenseToDelete);
-                        setSelectedExpenseId(null); // Deselect the expense after deletion
+                        setSelectedExpenseId(null);
                     }
                     setExpenseToDelete(null);
                 }}
-                title="¿Eliminar gasto?"
+                title="¿Eliminar registro?"
                 message="Este registro se borrará permanentemente de tu historial."
             />
 
-            {
-                editingExpense && (
-                    <ExpenseEditModal
-                        expense={editingExpense}
-                        onSave={onUpdate}
-                        onClose={() => setEditingExpense(null)}
-                    />
-                )
-            }
+            {editingExpense && (
+                <ExpenseEditModal
+                    expense={editingExpense}
+                    onSave={onUpdate}
+                    onClose={() => setEditingExpense(null)}
+                />
+            )}
         </div>
     );
 }
