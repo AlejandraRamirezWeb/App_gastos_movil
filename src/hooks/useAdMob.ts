@@ -1,22 +1,21 @@
 export const useAdMob = () => {
     const showInterstitial = () => {
-        // 1. Detectar si estamos en el entorno de la App (Median o GoNative)
+        // 1. Detección agresiva: Busca el objeto gonative o el userAgent
         const isMobileApp =
+            (window as any).gonative ||
             navigator.userAgent.includes('median') ||
-            navigator.userAgent.includes('gonative') ||
-            (window as any).gonative;
+            navigator.userAgent.includes('gonative');
 
         if (isMobileApp) {
-            console.log("Comando enviado: gonative://admob/interstitial/show");
+            console.log("📱 Ejecutando comando AdMob...");
 
-            // Añadimos un pequeño retraso de 100ms para asegurar que 
-            // la UI de React haya terminado de procesar el clic antes del anuncio.
+            // 2. Pequeño retraso para asegurar que React no bloquee el hilo
             setTimeout(() => {
                 window.location.href = "gonative://admob/interstitial/show";
             }, 100);
 
         } else {
-            console.log("Entorno Web: El anuncio no se mostrará fuera del APK/IPA.");
+            console.log("💻 Modo Web: El anuncio no saldrá aquí (Solo en APK).");
         }
     };
 

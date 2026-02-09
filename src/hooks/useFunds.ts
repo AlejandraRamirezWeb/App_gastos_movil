@@ -1,154 +1,69 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+export interface Fund {
+    id: string;
+    amount: number;
+    description?: string;
+    created_at: string;
+    user_id: string;
+}
 
 export function useFunds(userId: string | undefined) {
-    const [totalFunds, setTotalFunds] = useState<number>(0);
-    const [records, setRecords] = useState<any[]>([]);
+    const [funds, setFunds] = useState<Fund[]>([]);
+    const [totalFunds, setTotalFunds] = useState(0);
     const [loading, setLoading] = useState(true);
 
     const fetchFunds = async () => {
-        if (!userId) {
-            setLoading(false);
-            return;
-        }
+        if (!userId) return;
 
-        try {
-            const { data, error } = await supabase
-                .from('funds')
-                .select('*')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false });
+        // Obtenemos la LISTA completa, no solo la suma
+        const { data, error } = await supabase
+            .from('funds')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
 
-            if (error) {
-                // If table doesn't exist or other error, fallback to localStorage
-                console.warn('useFunds: Supabase error, falling back to localStorage:', error.message);
-                const saved = localStorage.getItem(`funds_${userId}`);
-                setTotalFunds(saved ? parseFloat(saved) : 0);
-            } else {
-                const total = data.reduce((acc, curr) => acc + curr.amount, 0);
-                setTotalFunds(total);
-                setRecords(data);
-                // Also sync to localStorage for offline/backup
-                localStorage.setItem(`funds_${userId}`, total.toString());
-                localStorage.setItem(`funds_records_${userId}`, JSON.stringify(data));
-            }
-        } catch (e) {
-            console.error('useFunds: Unexpected error:', e);
-            const saved = localStorage.getItem(`funds_${userId}`);
-            const savedRecords = localStorage.getItem(`funds_records_${userId}`);
-            setTotalFunds(saved ? parseFloat(saved) : 0);
-            setRecords(savedRecords ? JSON.parse(savedRecords) : []);
+        if (!error && data) {
+            setFunds(data);
+            // Calculamos el total sumando la lista
+            const total = data.reduce((acc, curr) => acc + curr.amount, 0);
+            setTotalFunds(total);
         }
         setLoading(false);
     };
 
     useEffect(() => {
         fetchFunds();
+        // Suscripción en tiempo real para actualizar si borras algo
+        const channel = supabase.channel('funds_changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'funds' }, fetchFunds)
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
     }, [userId]);
 
     const addFunds = async (amount: number, description?: string) => {
         if (!userId) return;
-
-        try {
-            const { error } = await supabase
-                .from('funds')
-                .insert([{ user_id: userId, amount, description: description || 'Ingreso de fondos' }]);
-
-            if (error) {
-                console.warn('useFunds: Could not save to Supabase, saving to localStorage only:', error.message);
-                const newTotal = totalFunds + amount;
-                setTotalFunds(newTotal);
-                localStorage.setItem(`funds_${userId}`, newTotal.toString());
-            } else {
-                await fetchFunds();
-            }
-        } catch (e) {
-            console.error('useFunds: Error adding funds:', e);
-            const newTotal = totalFunds + amount;
-            setTotalFunds(newTotal);
-            localStorage.setItem(`funds_${userId}`, newTotal.toString());
-        }
+        const { error } = await supabase.from('funds').insert([{
+            user_id: userId,
+            amount,
+            description: description || 'Ingreso manual'
+        }]);
+        if (!error) fetchFunds();
     };
 
-    const updateFund = async (id: string, updates: any) => {
-        if (!userId) return;
-
-        try {
-            const { error } = await supabase
-                .from('funds')
-                .update(updates)
-                .eq('id', id)
-                .eq('user_id', userId);
-
-            if (error) {
-                console.error('useFunds: Error updating fund:', error.message);
-            } else {
-                await fetchFunds();
-            }
-        } catch (e) {
-            console.error('useFunds: Unexpected error updating fund:', e);
-        }
-    };
-
+    // Función para BORRAR ingresos
     const deleteFund = async (id: string) => {
-        if (!userId) return;
-
-        try {
-            const { error } = await supabase
-                .from('funds')
-                .delete()
-                .eq('id', id)
-                .eq('user_id', userId);
-
-            if (error) {
-                console.error('useFunds: Error deleting fund:', error.message);
-            } else {
-                await fetchFunds();
-            }
-        } catch (e) {
-            console.error('useFunds: Unexpected error deleting fund:', e);
-        }
+        const { error } = await supabase.from('funds').delete().eq('id', id);
+        if (!error) fetchFunds();
     };
 
-    const setInitialFunds = async (amount: number) => {
-        if (!userId) return;
-
-        try {
-            // For simplicity in this implementation, we'll just delete old records and insert a new one
-            // or just add the difference if we want to be more precise.
-            // But usually "set" means overwrite the visual total.
-
-            const { error: deleteError } = await supabase
-                .from('funds')
-                .delete()
-                .eq('user_id', userId);
-
-            const { error: insertError } = await supabase
-                .from('funds')
-                .insert([{ user_id: userId, amount }]);
-
-            if (deleteError || insertError) {
-                console.warn('useFunds: Supabase set failed, using localStorage');
-                setTotalFunds(amount);
-                localStorage.setItem(`funds_${userId}`, amount.toString());
-            } else {
-                await fetchFunds();
-            }
-        } catch (e) {
-            setTotalFunds(amount);
-            localStorage.setItem(`funds_${userId}`, amount.toString());
-        }
+    // Función para EDITAR ingresos
+    const updateFund = async (id: string, updates: Partial<Fund>) => {
+        const { error } = await supabase.from('funds').update(updates).eq('id', id);
+        if (!error) fetchFunds();
     };
 
-    return {
-        totalFunds,
-        funds: records,
-        loading,
-        addFunds,
-        updateFund,
-        deleteFund,
-        setInitialFunds,
-        refreshFunds: fetchFunds
-    };
+    return { funds, totalFunds, loading, addFunds, deleteFund, updateFund };
 }
