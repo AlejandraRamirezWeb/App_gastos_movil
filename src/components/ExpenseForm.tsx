@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Plus, Coffee, Car, Music, Receipt, ShoppingBag, CircleDollarSign, Users } from 'lucide-react';
-import type { Expense } from '../hooks/useExpenses';
 import type { Contact } from '../hooks/useContacts';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';

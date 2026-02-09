@@ -22,7 +22,7 @@ export function useNotifications(userId: string | undefined) {
         }
 
         try {
-            // 1. SOLICITUDES DE AMISTAD (Sin Join, solo IDs)
+            // 1. SOLICITUDES DE AMISTAD
             const { data: contactRequests, error: contactError } = await supabase
                 .from('contacts')
                 .select('*')
@@ -31,7 +31,7 @@ export function useNotifications(userId: string | undefined) {
 
             if (contactError) console.error('Error fetching contacts:', contactError);
 
-            // 2. GASTOS COMPARTIDOS (Sin Join, solo IDs)
+            // 2. GASTOS COMPARTIDOS
             const { data: expenseRequests, error: expenseError } = await supabase
                 .from('expenses')
                 .select('*')
@@ -40,7 +40,7 @@ export function useNotifications(userId: string | undefined) {
 
             if (expenseError) console.error('Error fetching expenses:', expenseError);
 
-            // 3. Obtener Nombres Manualmente (Para evitar errores de Foreign Key)
+            // 3. Obtener Nombres
             const senderIds = new Set<string>();
             contactRequests?.forEach((c: any) => senderIds.add(c.user_id));
             expenseRequests?.forEach((e: any) => senderIds.add(e.user_id));
@@ -58,7 +58,7 @@ export function useNotifications(userId: string | undefined) {
                 });
             }
 
-            // 4. Armar la lista final
+            // 4. Formatear
             const formattedContacts = (contactRequests || []).map((c: any) => ({
                 uniqueId: `contact-${c.id}`,
                 id: c.id,
@@ -89,8 +89,6 @@ export function useNotifications(userId: string | undefined) {
         }
     };
 
-    // --- ACCIONES (Sin cambios, funcionan bien) ---
-
     const handleExpenseRequest = async (expenseId: string, accept: boolean) => {
         await supabase
             .from('expenses')
@@ -101,13 +99,11 @@ export function useNotifications(userId: string | undefined) {
 
     const handleContactRequest = async (contactId: string, accept: boolean) => {
         if (accept) {
-            // 1. Marcar como aceptada la solicitud original
             const { data: req } = await supabase.from('contacts').select('*').eq('id', contactId).single();
 
             if (req) {
                 await supabase.from('contacts').update({ status: 'accepted' }).eq('id', contactId);
 
-                // 2. Verificar si ya existe el contacto inverso para no duplicar
                 const { data: existing } = await supabase
                     .from('contacts')
                     .select('id')
@@ -115,12 +111,11 @@ export function useNotifications(userId: string | undefined) {
                     .eq('friend_id', req.user_id)
                     .single();
 
-                // 3. Si no existe, crearlo (Para que tú también lo tengas en tu lista)
                 if (!existing) {
                     await supabase.from('contacts').insert({
                         user_id: userId,
                         friend_id: req.user_id,
-                        name: req.name || 'Nuevo Amigo', // Nombre temporal, luego lo editas
+                        name: req.name || 'Nuevo Amigo',
                         status: 'accepted',
                         is_sender: false
                     });
@@ -134,8 +129,6 @@ export function useNotifications(userId: string | undefined) {
 
     useEffect(() => {
         fetchNotifications();
-
-        // Suscripción Realtime Simple
         const sub = supabase.channel('notifications_robust')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts' }, fetchNotifications)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchNotifications)
@@ -144,5 +137,12 @@ export function useNotifications(userId: string | undefined) {
         return () => { sub.unsubscribe(); };
     }, [userId]);
 
-    return { notifications, unreadCount: notifications.length, refresh: fetchNotifications, handleContactRequest, handleExpenseRequest };
+    return {
+        notifications,
+        unreadCount: notifications.length,
+        refresh: fetchNotifications,
+        handleContactRequest,
+        handleExpenseRequest,
+        loading // <--- ¡AQUÍ ESTABA EL ERROR! FALTABA EXPORTAR ESTO
+    };
 }

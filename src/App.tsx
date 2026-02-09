@@ -42,7 +42,7 @@ function App() {
   const { totalFunds, addFunds, funds, updateFund, deleteFund } = useFunds(user?.id);
 
   // 4. Notificaciones
-  const { notifications, unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
+  const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
   // 5. Publicidad
   const { showInterstitial } = useAdMob();
