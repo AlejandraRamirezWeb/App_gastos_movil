@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Copy, Search, User, ChevronDown, ChevronUp, ArrowRight, Edit2, X, Check } from 'lucide-react';
+import { Plus, Trash2, Copy, Search, User, ChevronDown, Eye, ChevronUp, ArrowRight, Edit2, X, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Contact } from '../hooks/useContacts';
 
