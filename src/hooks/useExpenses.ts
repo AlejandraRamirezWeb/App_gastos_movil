@@ -6,11 +6,13 @@ export interface Expense {
     amount: number;
     category: string;
     description: string;
-    date: string; // ISO string
+    date: string;
     contactId?: string;
-    isGroup?: boolean;
     user_id: string;
     type?: 'expense' | 'income';
+    shared_with_user_id?: string;
+    status?: 'approved' | 'pending' | 'rejected';
+    isGroup?: boolean;
 }
 
 export function useExpenses(userId: string | undefined) {
@@ -23,17 +25,13 @@ export function useExpenses(userId: string | undefined) {
             return;
         }
 
-        console.log('useExpenses: Fetching for', userId);
         const { data, error } = await supabase
             .from('expenses')
             .select('*')
-            .or(`user_id.eq.${userId},contactId.eq.${userId}`)
+            .or(`user_id.eq.${userId},shared_with_user_id.eq.${userId}`)
             .order('date', { ascending: false });
 
-        if (error) {
-            console.error('useExpenses: Fetch error:', error);
-        } else {
-            console.log('useExpenses: Fetched', data?.length || 0, 'expenses');
+        if (!error) {
             setExpenses(data || []);
         }
         setLoading(false);
@@ -41,66 +39,58 @@ export function useExpenses(userId: string | undefined) {
 
     useEffect(() => {
         fetchExpenses();
+        const channel = supabase.channel('expenses_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
     }, [userId]);
 
-    const addExpense = async (expense: Omit<Expense, 'id' | 'user_id'>) => {
+    const addExpense = async (expense: any) => {
         if (!userId) return;
 
-        console.log('useExpenses: Adding expense to Supabase...', expense);
+        // VERIFICACIÓN CRÍTICA
+        const isShared = expense.isGroup && expense.sharedWith;
+        const initialStatus = isShared ? 'pending' : 'approved';
 
-        const { error } = await supabase
-            .from('expenses')
-            .insert([{ ...expense, user_id: userId }]);
+        const payload = {
+            amount: expense.amount,
+            category: expense.category,
+            description: expense.description,
+            date: expense.date,
+            type: expense.type || 'expense',
+            contactId: expense.contactId,
+            user_id: userId,
+            // AQUÍ ASIGNAMOS EL ID DEL AMIGO AL CAMPO CORRECTO
+            shared_with_user_id: expense.sharedWith || null,
+            status: initialStatus
+        };
+
+        const { error } = await supabase.from('expenses').insert([payload]);
 
         if (error) {
-            console.error('useExpenses: Insert error:', error);
-            alert('❌ ERROR de Supabase:\n' + error.message);
+            console.error('Error adding expense:', error);
+            // Si el error es Foreign Key, es porque el ID del amigo no existe en perfiles
+            alert('❌ Error al guardar: ' + error.message);
         } else {
-            console.log('useExpenses: Insert success');
-            alert('✅ Gasto guardado correctamente');
-            await fetchExpenses(); // Recargar la lista inmediatamente
+            if (isShared) {
+                alert('📤 Solicitud de gasto enviada al contacto.');
+            } else {
+                alert('✅ Gasto guardado.');
+            }
+            await fetchExpenses();
         }
     };
 
-    const updateExpense = async (id: string, updates: Partial<Omit<Expense, 'id' | 'user_id'>>) => {
-        const { error } = await supabase
-            .from('expenses')
-            .update(updates)
-            .eq('id', id);
-
-        if (error) {
-            console.error('useExpenses: Update error:', error);
-        } else {
-            fetchExpenses();
-        }
+    const updateExpense = async (id: string, updates: Partial<Expense>) => {
+        const { error } = await supabase.from('expenses').update(updates).eq('id', id);
+        if (!error) fetchExpenses();
     };
 
     const deleteExpense = async (id: string) => {
-        console.log('useExpenses: deleteExpense called for', id);
-
-        // Optimistic Update: Remove from local state immediately
         setExpenses(prev => prev.filter(e => e.id !== id));
-
-        const { error } = await supabase
-            .from('expenses')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('useExpenses: Delete error:', error);
-            alert('❌ No se pudo eliminar de la nube:\n' + error.message);
-            // Re-fetch to restore state if deletion failed
-            fetchExpenses();
-        } else {
-            console.log('useExpenses: Delete success');
-        }
+        const { error } = await supabase.from('expenses').delete().eq('id', id);
+        if (error) fetchExpenses();
     };
 
-    return {
-        expenses,
-        loading,
-        addExpense,
-        updateExpense,
-        deleteExpense
-    };
+    return { expenses, loading, addExpense, updateExpense, deleteExpense };
 }

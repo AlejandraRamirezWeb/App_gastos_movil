@@ -8,7 +8,7 @@ import { CustomDatePicker } from './CustomDatePicker';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface ExpenseFormProps {
-    onAdd: (expense: Omit<Expense, 'id' | 'user_id'>) => void;
+    onAdd: (expense: any) => void; // Cambiado a any para permitir el campo extra sharedWith
     contacts: Contact[];
 }
 
@@ -33,9 +33,7 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
 
     // Función para solicitar el anuncio a la app nativa (Median/AdMob)
     const solicitarAnuncioAdMob = () => {
-        // Verificamos si estamos dentro de la app móvil mediante el User Agent
         if (navigator.userAgent.includes('median')) {
-            // Comando nativo para mostrar el anuncio intersticial configurado
             window.location.href = "gonative://admob/interstitial/show";
         }
     };
@@ -63,13 +61,30 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
 
         let finalDescription = description;
         let finalAmount = numericAmount;
+        let friendUserId = null; // Variable para guardar el ID real del amigo
 
         if (isGroup && selectedContactId) {
+            // 1. LÓGICA DE CÁLCULO (Tu lógica original)
             const mySharePercent = splitPercentage;
             const theirSharePercent = 100 - splitPercentage;
+
+            // Calculamos solo TU parte para guardarla como monto principal
             finalAmount = Math.round(numericAmount * (mySharePercent / 100));
+
             const splitNote = `(Total: ${amount} | División: ${mySharePercent}%/${theirSharePercent}%)`;
             finalDescription = description ? `${description} ${splitNote}` : splitNote;
+
+            // 2. LÓGICA DE NOTIFICACIÓN (LA CORRECCIÓN)
+            // Buscamos al contacto completo en la lista
+            const contact = contacts.find(c => c.id === selectedContactId);
+
+            // Si el contacto tiene friend_id (es usuario real), lo guardamos
+            if (contact?.friend_id) {
+                friendUserId = contact.friend_id;
+            } else {
+                // Opcional: Avisar si intentan compartir con un contacto manual
+                // alert("Nota: Este gasto se guardará, pero no se notificará al contacto porque no tiene App.");
+            }
         }
 
         const expenseData = {
@@ -77,16 +92,15 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             amount: convertToBase(finalAmount),
             category,
             description: finalDescription,
-            ...(isGroup && selectedContactId && {
-                isGroup: true,
-                contactId: selectedContactId
-            })
+            isGroup: isGroup,
+            contactId: selectedContactId || null, // ID local para tu historial
+            sharedWith: friendUserId,             // ID real para la notificación (CRUCIAL)
         };
 
         // Ejecutar la adición del gasto
         onAdd(expenseData);
 
-        // DISPARAR ANUNCIO: Justo después de agregar el gasto
+        // DISPARAR ANUNCIO
         solicitarAnuncioAdMob();
 
         // Limpiar formulario

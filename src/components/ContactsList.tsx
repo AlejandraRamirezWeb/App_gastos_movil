@@ -1,154 +1,194 @@
 import { useState } from 'react';
-import { UserPlus, Users, Trash2 } from 'lucide-react';
-import { ConfirmModal } from './ConfirmModal';
+import { Plus, Trash2, Copy, Search, User, ChevronDown, ChevronUp, Eye, EyeOff, Mail, ArrowRight, Edit2, X, Check } from 'lucide-react';
+import { cn } from '../lib/utils';
 import type { Contact } from '../hooks/useContacts';
-import type { Expense } from '../hooks/useExpenses';
-import { formatCurrency, cn } from '../lib/utils';
-import { useSettings } from '../contexts/SettingsContext';
 
-interface ContactsListProps {
+interface Props {
     contacts: Contact[];
-    expenses: Expense[];
+    expenses: any[];
     onAddContact: (name: string) => void;
     onDeleteContact: (id: string) => void;
+    onSearchCode?: (code: string) => Promise<any>;
+    onRequestContact?: (id: string, name: string) => Promise<boolean>;
+    onUpdateContactName?: (id: string, name: string) => Promise<boolean>; // Nuevo Prop
+    myFriendCode?: string;
 }
 
-export function ContactsList({ contacts, expenses, onAddContact, onDeleteContact }: ContactsListProps) {
-    const { currency } = useSettings();
-    const [newContactName, setNewContactName] = useState('');
-    const [isAdding, setIsAdding] = useState(false);
-    const [contactToDelete, setContactToDelete] = useState<string | null>(null);
+export function ContactsList({ contacts, expenses, onDeleteContact, onSearchCode, onRequestContact, onUpdateContactName, myFriendCode }: Props) {
+    // Estados para añadir contacto
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [friendCodeInput, setFriendCodeInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [modalStep, setModalStep] = useState<'search' | 'confirm'>('search');
+    const [foundUser, setFoundUser] = useState<any>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    // Estados para editar nombre
+    const [editingContactId, setEditingContactId] = useState<string | null>(null);
+    const [editNameValue, setEditNameValue] = useState('');
 
-        if (newContactName.trim()) {
-            onAddContact(newContactName.trim());
-            setNewContactName('');
-            setIsAdding(false);
+    // Estados visuales Header
+    const [isHeaderExpanded, setIsHeaderExpanded] = useState(false);
+    const [showCodeCharacters, setShowCodeCharacters] = useState(false);
+
+    const activeContacts = contacts.filter(c => c.status === 'accepted' || !c.status);
+
+    // --- LÓGICA DE AÑADIR ---
+    const handleSearch = async () => {
+        if (!friendCodeInput.trim() || !onSearchCode) return;
+        setLoading(true);
+        try {
+            const user = await onSearchCode(friendCodeInput);
+            setFoundUser(user);
+            setModalStep('confirm');
+        } catch (e: any) {
+            alert(e.message || 'Usuario no encontrado');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const getContactExpenses = (contactId: string) => {
-        return expenses.filter(e => e.contactId === contactId && e.isGroup);
+    const handleConfirmAdd = async () => {
+        if (!onRequestContact || !foundUser) return;
+        setLoading(true);
+        try {
+            // Enviamos la solicitud con el nombre original del perfil
+            const success = await onRequestContact(foundUser.id, foundUser.full_name || 'Nuevo Amigo');
+            if (success) {
+                resetModal();
+                alert('¡Solicitud enviada! Ahora espera a que te acepten.');
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const getContactTotal = (contactId: string) => {
-        return getContactExpenses(contactId).reduce((acc, curr) => acc + curr.amount, 0);
+    const resetModal = () => {
+        setShowAddModal(false);
+        setModalStep('search');
+        setFriendCodeInput('');
+        setFoundUser(null);
+    };
+
+    // --- LÓGICA DE EDITAR NOMBRE ---
+    const startEditing = (contact: Contact) => {
+        setEditingContactId(contact.id);
+        setEditNameValue(contact.name);
+    };
+
+    const saveEditName = async () => {
+        if (!editingContactId || !onUpdateContactName || !editNameValue.trim()) return;
+        await onUpdateContactName(editingContactId, editNameValue);
+        setEditingContactId(null);
     };
 
     return (
-        <div className="space-y-6 px-6 pt-6 pb-24">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-950">Contactos</h2>
-                    <p className="text-sm text-slate-600">Gestiona tus gastos grupales</p>
+        <div className="pb-24">
+            {/* HEADER CÓDIGO */}
+            <div className={cn("bg-primary-600 rounded-b-[2rem] shadow-lg mb-6 transition-all overflow-hidden", isHeaderExpanded ? "pt-4 pb-6 px-6" : "py-3 px-6")}>
+                <div onClick={() => setIsHeaderExpanded(!isHeaderExpanded)} className="flex justify-between items-center cursor-pointer text-white/90">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium uppercase tracking-wider">Mi Código</span>
+                        {!isHeaderExpanded && <span className="text-xs bg-white/20 px-2 py-0.5 rounded text-white/80">{showCodeCharacters ? (myFriendCode || '....') : '••••••'}</span>}
+                    </div>
+                    {isHeaderExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </div>
-                <button
-                    onClick={() => setIsAdding(!isAdding)}
-                    className={cn(
-                        "p-3 rounded-xl transition-all active:scale-95",
-                        isAdding
-                            ? "bg-slate-200 text-slate-700"
-                            : "bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-900/20"
-                    )}
-                >
-                    <UserPlus className="w-5 h-5" />
-                </button>
+                {isHeaderExpanded && (
+                    <div className="mt-4 flex flex-col items-center animate-in fade-in">
+                        <div className="flex gap-2">
+                            <div onClick={() => { if (myFriendCode) navigator.clipboard.writeText(myFriendCode) }} className="flex items-center gap-3 bg-white/10 px-5 py-2 rounded-xl border border-white/20 cursor-pointer active:scale-95">
+                                <span className="text-2xl font-mono font-bold text-white tracking-widest">{showCodeCharacters ? (myFriendCode || '....') : '••••••'}</span>
+                                <Copy className="w-4 h-4 text-primary-200" />
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setShowCodeCharacters(!showCodeCharacters) }} className="p-2.5 bg-white/10 rounded-xl text-primary-100"><Eye className="w-5 h-5" /></button>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Add Contact Form */}
-            {isAdding && (
-                <form onSubmit={handleSubmit} className="animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block">
-                                Nombre del contacto
-                            </label>
-                            <input
-                                type="text"
-                                value={newContactName}
-                                onChange={e => setNewContactName(e.target.value)}
-                                placeholder="Ej: Juan Pérez"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-medium"
-                                autoFocus
-                                required
-                            />
+            {/* LISTA CONTACTOS */}
+            <div className="px-6 mb-4 flex justify-between items-center">
+                <h3 className="font-bold text-slate-800 text-lg flex gap-2"><User className="w-5 h-5 text-primary-600" /> Mis Contactos <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{activeContacts.length}</span></h3>
+                <button onClick={() => { resetModal(); setShowAddModal(true) }} className="flex gap-2 bg-primary-50 text-primary-600 px-4 py-2 rounded-full text-sm font-bold active:scale-95"><Plus className="w-4 h-4" /> Añadir</button>
+            </div>
+
+            <div className="px-6 space-y-3">
+                {activeContacts.map((contact) => (
+                    <div key={contact.id} className="group flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3 flex-1">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg shrink-0">
+                                {contact.name.charAt(0).toUpperCase()}
+                            </div>
+
+                            {/* MODO EDICIÓN vs MODO VER */}
+                            {editingContactId === contact.id ? (
+                                <div className="flex items-center gap-2 flex-1">
+                                    <input
+                                        autoFocus
+                                        className="w-full bg-slate-50 border border-primary-200 rounded-lg px-2 py-1 text-sm focus:outline-none"
+                                        value={editNameValue}
+                                        onChange={(e) => setEditNameValue(e.target.value)}
+                                    />
+                                    <button onClick={saveEditName} className="p-1.5 bg-green-100 text-green-600 rounded-lg"><Check className="w-4 h-4" /></button>
+                                    <button onClick={() => setEditingContactId(null)} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="w-4 h-4" /></button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <h3 className="font-semibold text-slate-900">{contact.name}</h3>
+                                    <p className="text-xs text-slate-400">{expenses.filter((e) => e.contactId === contact.id || e.shared_with_user_id === contact.friend_id).length} transacciones</p>
+                                </div>
+                            )}
                         </div>
 
-                        <button
-                            type="submit"
-                            className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-all active:scale-95 shadow-md shadow-primary-900/10"
-                        >
-                            Añadir Contacto
-                        </button>
+                        {/* BOTONES DE ACCIÓN (Editar y Borrar) */}
+                        {editingContactId !== contact.id && (
+                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => startEditing(contact)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl">
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => onDeleteContact(contact.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl">
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
-                </form>
-            )}
+                ))}
+            </div>
 
-            {/* Contacts List */}
-            {contacts.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Users className="w-8 h-8 opacity-20" />
-                    </div>
-                    <p className="text-sm">Aún no hay contactos</p>
-                    <p className="text-xs text-slate-400 mt-1">Añade contactos para llevar gastos grupales</p>
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    {contacts.map(contact => {
-                        const total = getContactTotal(contact.id);
-                        const expenseCount = getContactExpenses(contact.id).length;
+            {/* MODAL AÑADIR (SIMPLIFICADO) */}
+            {showAddModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl scale-100 animate-in zoom-in-95">
+                        <div className="text-center mb-6">
+                            <h3 className="text-xl font-bold text-slate-900">{modalStep === 'search' ? 'Añadir Amigo' : 'Confirmar'}</h3>
+                            <p className="text-sm text-slate-500">{modalStep === 'search' ? 'Ingresa el código' : '¿Es esta la persona?'}</p>
+                        </div>
 
-                        return (
-                            <div
-                                key={contact.id}
-                                className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
-                                            <span className="text-lg font-bold text-primary-600">
-                                                {contact.name.charAt(0).toUpperCase()}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-900">{contact.name}</p>
-                                            <p className="text-xs text-slate-500">
-                                                {expenseCount} {expenseCount === 1 ? 'gasto' : 'gastos'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right">
-                                            <p className="text-sm font-semibold text-slate-900">
-                                                {formatCurrency(total, currency)}
-                                            </p>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total</p>
-                                        </div>
-                                        <button
-                                            onClick={() => setContactToDelete(contact.id)}
-                                            className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors active:scale-95"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                        {modalStep === 'search' && (
+                            <div className="space-y-4">
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                                    <input type="text" className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl uppercase font-mono font-bold text-lg text-center tracking-widest outline-none focus:ring-2 focus:ring-primary-500/20" placeholder="Ej: A1B2C3" maxLength={6} value={friendCodeInput} onChange={(e) => setFriendCodeInput(e.target.value.toUpperCase())} />
+                                </div>
+                                <button onClick={handleSearch} disabled={loading || friendCodeInput.length < 6} className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-bold disabled:opacity-50">{loading ? '...' : 'Buscar'}</button>
+                            </div>
+                        )}
+
+                        {modalStep === 'confirm' && foundUser && (
+                            <div className="space-y-5">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">{foundUser.full_name?.charAt(0)}</div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900">{foundUser.full_name}</p>
+                                        <p className="text-xs text-slate-500">{foundUser.email}</p>
                                     </div>
                                 </div>
+                                <button onClick={handleConfirmAdd} disabled={loading} className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-bold flex justify-center gap-2">{loading ? 'Enviando...' : <>Enviar Solicitud <ArrowRight className="w-4 h-4" /></>}</button>
                             </div>
-                        );
-                    })}
+                        )}
+                        <button onClick={resetModal} className="w-full py-3 mt-2 text-slate-500 font-medium text-sm">Cancelar</button>
+                    </div>
                 </div>
             )}
-
-            <ConfirmModal
-                isOpen={!!contactToDelete}
-                onClose={() => setContactToDelete(null)}
-                onConfirm={() => contactToDelete && onDeleteContact(contactToDelete)}
-                title="¿Eliminar contacto?"
-                message="Esta acción no se puede deshacer y podrías perder la referencia en tus gastos compartidos."
-            />
         </div>
     );
 }

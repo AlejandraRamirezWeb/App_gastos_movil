@@ -5,110 +5,127 @@ export interface Contact {
     id: string;
     name: string;
     user_id: string;
+    friend_id?: string;
+    status?: 'pending' | 'accepted' | 'rejected';
+    is_sender?: boolean;
 }
 
 export function useContacts(userId: string | undefined) {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    const fetchContacts = async () => {
         if (!userId) {
             setLoading(false);
             return;
         }
 
-        const fetchContacts = async () => {
-            console.log('useContacts: Fetching contacts for userId:', userId);
-            const { data, error } = await supabase
-                .from('contacts')
-                .select('*')
-                .eq('user_id', userId)
-                .order('name');
+        const { data, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('user_id', userId)
+            .order('name');
 
-            if (error) {
-                console.error('useContacts: Error fetching contacts:', error);
-            } else {
-                console.log('useContacts: Fetched contacts successfully, count:', data?.length || 0);
-                setContacts(data || []);
-            }
-            setLoading(false);
-        };
+        if (!error) {
+            setContacts(data || []);
+        }
+        setLoading(false);
+    };
 
+    useEffect(() => {
         fetchContacts();
-
-        // Subscribe to changes
         const subscription = supabase
             .channel('contacts_changes')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'contacts',
-                filter: `user_id=eq.${userId}`
-            }, fetchContacts)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'contacts', filter: `user_id=eq.${userId}` }, fetchContacts)
             .subscribe();
-
-        return () => {
-            subscription.unsubscribe();
-        };
+        return () => { subscription.unsubscribe(); };
     }, [userId]);
 
-    const addContact = async (name: string) => {
-        console.log('useContacts: addContact called with', { name, userId });
-        if (!userId) {
-            console.error('useContacts: No userId found, cannot add contact');
-            return;
-        }
+    // Buscar Usuario (Paso 1)
+    const searchContactByCode = async (friendCode: string) => {
+        if (!userId) throw new Error('No autenticado');
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('friend_code', friendCode.toUpperCase())
+            .single();
 
-        const { error } = await supabase
+        if (error || !profile) throw new Error('Código no encontrado');
+        if (profile.id === userId) throw new Error('No puedes añadirte a ti mismo');
+
+        // Verificar existencia
+        const { data: existing } = await supabase
             .from('contacts')
-            .insert([{ name, user_id: userId }]);
+            .select('id')
+            .eq('user_id', userId)
+            .eq('friend_id', profile.id)
+            .single();
+        if (existing) throw new Error('Ya tienes a este usuario en tus contactos');
 
-        if (error) {
-            console.error('useContacts: Error adding contact to Supabase:', error);
-            alert('Error al añadir contacto: ' + error.message);
-        } else {
-            console.log('useContacts: Contact added successfully');
+        return profile;
+    };
 
-            // Re-fetch to update list
-            const { data } = await supabase
+    // Enviar Solicitud (Paso 2)
+    const requestContact = async (friendId: string, defaultName: string) => {
+        if (!userId) return false;
+        try {
+            const { error } = await supabase.from('contacts').insert({
+                user_id: userId,
+                friend_id: friendId,
+                name: defaultName, // Usamos el nombre original al enviar
+                status: 'pending',
+                is_sender: true
+            });
+            if (error) throw error;
+            await fetchContacts();
+            return true;
+        } catch (error: any) {
+            alert('❌ Error: ' + error.message);
+            return false;
+        }
+    };
+
+    // --- NUEVO: Actualizar Nombre del Contacto ---
+    const updateContactName = async (contactId: string, newName: string) => {
+        if (!userId) return false;
+        try {
+            // Optimistic update
+            setContacts(prev => prev.map(c => c.id === contactId ? { ...c, name: newName } : c));
+
+            const { error } = await supabase
                 .from('contacts')
-                .select('*')
-                .eq('user_id', userId)
-                .order('name');
-            setContacts(data || []);
+                .update({ name: newName })
+                .eq('id', contactId);
+
+            if (error) throw error;
+            return true;
+        } catch (error: any) {
+            alert('❌ Error al actualizar: ' + error.message);
+            fetchContacts(); // Revertir si falla
+            return false;
         }
     };
 
     const deleteContact = async (id: string) => {
-        console.log('useContacts: deleteContact called for id:', id);
-
-        // Optimistic Update
         setContacts(prev => prev.filter(c => c.id !== id));
+        const { error } = await supabase.from('contacts').delete().eq('id', id);
+        if (error) fetchContacts();
+    };
 
-        const { error } = await supabase
-            .from('contacts')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('useContacts: Error deleting contact from Supabase:', error);
-            alert('❌ No se pudo eliminar de la nube:\n' + error.message);
-            // Restore state on failure
-            const { data } = await supabase
-                .from('contacts')
-                .select('*')
-                .eq('user_id', userId)
-                .order('name');
-            setContacts(data || []);
-        } else {
-            console.log('useContacts: Contact deleted successfully');
-        }
+    // Función legacy
+    const addContact = async (name: string) => {
+        if (!userId) return;
+        const { error } = await supabase.from('contacts').insert([{ name, user_id: userId, status: 'accepted' }]);
+        if (!error) fetchContacts();
     };
 
     return {
         contacts,
         loading,
         addContact,
+        searchContactByCode,
+        requestContact,
+        updateContactName, // Exportamos la nueva función
         deleteContact
     };
 }

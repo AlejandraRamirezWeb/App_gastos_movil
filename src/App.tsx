@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MobileLayout } from './components/layout/MobileLayout';
 import { ExpenseForm } from './components/ExpenseForm';
 import { HistoryList } from './components/HistoryList';
@@ -10,84 +10,118 @@ import type { Expense } from './hooks/useExpenses';
 import { useContacts } from './hooks/useContacts';
 import { useAuth } from './hooks/useAuth';
 import { useFunds } from './hooks/useFunds';
-import { ReceiptText, History, Users, LogOut, Settings, Wallet } from 'lucide-react';
+import { FundsManager } from './components/FundsManager';
+import { ReceiptText, History, Users, LogOut, Settings, Wallet, Bell } from 'lucide-react';
 import { cn } from './lib/utils';
 import { useSettings } from './contexts/SettingsContext';
-import { FundsManager } from './components/FundsManager';
-// 1. Importamos el hook de AdMob
+import { supabase } from './lib/supabase';
 import { useAdMob } from './hooks/useAdMob';
+import { useNotifications } from './hooks/useNotifications';
+import { NotificationsModal } from './components/NotificationsModal';
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
+
+  // --- HOOKS ---
+
+  // 1. Contactos: Extraemos TODAS las funciones nuevas (updateContactName, search..., request...)
+  const {
+    contacts,
+    loading: contactsLoading,
+    addContact,
+    deleteContact,
+    searchContactByCode,
+    requestContact,
+    updateContactName
+  } = useContacts(user?.id);
+
+  // 2. Gastos
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
-  const { contacts, loading: contactsLoading, addContact, deleteContact } = useContacts(user?.id);
+
+  // 3. Fondos
   const { totalFunds, addFunds, funds, updateFund, deleteFund } = useFunds(user?.id);
 
-  // 2. Inicializamos el hook de publicidad
-  const { showInterstitial } = useAdMob();
+  // 4. Notificaciones
+  const { notifications, unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
+  // 5. Publicidad
+  const { showInterstitial } = useAdMob();
+  const [expenseAdCounter, setExpenseAdCounter] = useState(0);
+
+  // --- ESTADOS UI ---
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
-  const { currency, setCurrency, convertFromBase } = useSettings();
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const { currency, setCurrency, convertFromBase } = useSettings();
 
-  // Math Conversion
+  // Cargar perfil para obtener "Mi Código"
+  useEffect(() => {
+    if (user) {
+      supabase.from('profiles').select('*').eq('id', user.id).single()
+        .then(({ data }) => { if (data) setMyProfile(data); });
+    }
+  }, [user]);
+
+  // --- CÁLCULOS ---
   const totalExpenses = convertFromBase(expenses.reduce((acc, curr) => acc + curr.amount, 0));
   const totalIncome = convertFromBase(totalFunds);
   const currentBalance = totalIncome - totalExpenses;
 
-  // Merge transactions
   const transactions = [
     ...expenses.map(e => ({ ...e, type: 'expense' as const })),
-    ...(funds || []).map(f => ({
-      id: f.id,
-      amount: f.amount,
-      category: 'Ingreso',
-      date: f.created_at,
-      description: f.description || 'Ingreso de fondos',
-      type: 'income' as const,
-      user_id: f.user_id
-    }))
+    ...(funds || []).map(f => ({ ...f, amount: f.amount, category: 'Ingreso', date: f.created_at, description: f.description || 'Ingreso', type: 'income' as const, user_id: f.user_id }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Convert transactions for UI
-  const convertedTransactions = transactions.map(t => ({
-    ...t,
-    amount: convertFromBase(t.amount)
-  })) as Expense[];
+  const convertedTransactions = transactions.map(t => ({ ...t, amount: convertFromBase(t.amount) })) as Expense[];
 
-  // 3. Wrapper para interceptar el guardado de gastos e inyectar publicidad
+  // --- WRAPPERS CON PUBLICIDAD ---
+
   const handleAddExpenseWithAd = async (expense: any) => {
-    // Primero guardamos el gasto (lógica original)
     await addExpense(expense);
+    // Lógica del contador para anuncios
+    const newCount = expenseAdCounter + 1;
+    setExpenseAdCounter(newCount);
+    if (newCount % 2 === 0) showInterstitial();
+  };
 
-    // Después de guardar exitosamente, mostramos el anuncio
+  const handleAddFundsWithAd = async (amount: number, description?: string) => {
+    await addFunds(amount, description);
+    showInterstitial();
+  };
+
+  // Wrapper para añadir contacto manual (Legacy)
+  const handleAddContactWithAd = async (name: string) => {
+    await addContact(name);
+    showInterstitial();
+  };
+
+  // Wrapper para SOLICITUD DE AMISTAD (El flujo nuevo con código)
+  const handleRequestContactWithAd = async (friendId: string, name: string) => {
+    const success = await requestContact(friendId, name);
+    if (success) showInterstitial(); // Mostramos anuncio al enviar la solicitud
+    return success;
+  };
+
+  const handleDeleteTransactionWithAd = async (id: string) => {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+    if (transaction.type === 'income') await deleteFund(id);
+    else await deleteExpense(id);
     showInterstitial();
   };
 
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
-
-    if (transaction.type === 'income') {
-      await updateFund(id, updates);
-    } else {
-      await updateExpense(id, updates);
-    }
+    if (transaction.type === 'income') await updateFund(id, updates);
+    else await updateExpense(id, updates);
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    const transaction = transactions.find(t => t.id === id);
-    if (!transaction) return;
-
-    if (transaction.type === 'income') {
-      await deleteFund(id);
-    } else {
-      await deleteExpense(id);
-    }
-  };
+  // --- RENDER ---
 
   if (authLoading || (user && (expensesLoading || contactsLoading))) {
     return (
@@ -97,97 +131,48 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <Auth />;
-  }
+  if (!user) return <Auth />;
 
   return (
     <MobileLayout className="flex flex-col">
-      {/* Header */}
+      {/* HEADER */}
       <header className="px-6 pt-12 pb-6 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200">
         <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-950">
-              Mis gastos
-            </h1>
-            <p className="text-sm text-slate-900">Controla tu dinero</p>
-          </div>
+          <div><h1 className="text-2xl font-bold text-slate-950">Mis gastos</h1><p className="text-sm text-slate-900">Controla tu dinero</p></div>
           <div className="flex items-center gap-2">
+            <button onClick={() => { setShowNotifications(true); refreshNotifications(); }} className="relative p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all">
+              <Bell className="w-6 h-6" />
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
+            </button>
             <div className="relative">
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(
-                  "p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all",
-                  showSettings && "text-primary-600 bg-primary-50"
-                )}
-                title="Configuración"
-              >
-                <Settings className="w-5 h-5" />
+              <button onClick={() => setShowSettings(!showSettings)} className={cn("p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all", showSettings && "text-primary-600 bg-primary-50")}>
+                <Settings className="w-6 h-6" />
               </button>
-
               {showSettings && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="px-4 py-2 border-b border-slate-100 mb-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moneda</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCurrency('COP');
-                      setShowSettings(false);
-                    }}
-                    className={cn(
-                      "w-full px-4 py-3 text-left text-sm transition-colors flex items-center justify-between",
-                      currency === 'COP' ? "text-primary-600 font-semibold bg-primary-50/50" : "text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>Peso Colombiano (COP)</span>
-                    {currency === 'COP' && <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrency('AUD');
-                      setShowSettings(false);
-                    }}
-                    className={cn(
-                      "w-full px-4 py-3 text-left text-sm transition-colors flex items-center justify-between",
-                      currency === 'AUD' ? "text-primary-600 font-semibold bg-primary-50/50" : "text-slate-600 hover:bg-slate-50"
-                    )}
-                  >
-                    <span>Dólar Australiano (AUD)</span>
-                    {currency === 'AUD' && <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />}
-                  </button>
+                  <div className="px-4 py-2 border-b border-slate-100 mb-1"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moneda</p></div>
+                  <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm flex justify-between", currency === 'COP' ? "text-primary-600 font-bold bg-primary-50" : "text-slate-600")}><span>Peso (COP)</span>{currency === 'COP' && <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />}</button>
+                  <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm flex justify-between", currency === 'AUD' ? "text-primary-600 font-bold bg-primary-50" : "text-slate-600")}><span>Dólar (AUD)</span>{currency === 'AUD' && <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />}</button>
                 </div>
               )}
             </div>
-            <button
-              onClick={signOut}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-              title="Cerrar sesión"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+            <button onClick={signOut} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><LogOut className="w-6 h-6" /></button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto scrollbar-hide bg-slate-50 pb-24">
         <div className="min-h-full">
           {activeTab === 'add' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <ExpenseForm
-                onAdd={handleAddExpenseWithAd} // 4. Usamos la función con publicidad aquí
-                contacts={contacts}
-              />
+              <ExpenseForm onAdd={handleAddExpenseWithAd} contacts={contacts} />
             </div>
           ) : activeTab === 'history' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="px-6">
                 <ExpenseChart
-                  expenses={convertedTransactions.filter(t =>
-                    selectedCategory === 'all' ? true :
-                      selectedCategory === 'income' ? t.type === 'income' : t.category === selectedCategory
-                  )}
+                  expenses={convertedTransactions.filter(t => selectedCategory === 'all' ? true : selectedCategory === 'income' ? t.type === 'income' : t.category === selectedCategory)}
                   selectedDate={selectedDate}
                   onSelectDate={(date) => setSelectedDate(selectedDate === date ? null : date)}
                   viewMode={viewMode}
@@ -198,7 +183,7 @@ function App() {
                 contacts={contacts}
                 userId={user?.id}
                 selectedDate={selectedDate}
-                onDelete={handleDeleteTransaction}
+                onDelete={handleDeleteTransactionWithAd}
                 onUpdate={handleUpdateTransaction}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
@@ -208,81 +193,40 @@ function App() {
             </div>
           ) : activeTab === 'funds' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <FundsManager
-                totalFunds={totalIncome}
-                currentBalance={currentBalance}
-                totalExpenses={totalExpenses}
-                onAddFunds={addFunds}
-              />
+              <FundsManager totalFunds={totalIncome} currentBalance={currentBalance} totalExpenses={totalExpenses} onAddFunds={handleAddFundsWithAd} />
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* COMPONENTE CONTACTOS CON TODAS LAS PROPS NUEVAS */}
               <ContactsList
                 contacts={contacts}
                 expenses={convertedTransactions.filter(t => t.type === 'expense')}
-                onAddContact={addContact}
+                onAddContact={handleAddContactWithAd} // Legacy
                 onDeleteContact={deleteContact}
+                onSearchCode={searchContactByCode}        // 1. Buscar
+                onRequestContact={handleRequestContactWithAd} // 2. Enviar (con publicidad)
+                onUpdateContactName={updateContactName}   // 3. Renombrar (Lápiz)
+                myFriendCode={myProfile?.friend_code}     // 4. Mostrar mi código
               />
             </div>
           )}
         </div>
       </main>
 
-      {/* Bottom Navigation */}
+      {/* MODAL NOTIFICACIONES */}
+      {showNotifications && user && <NotificationsModal userId={user.id} onClose={() => setShowNotifications(false)} />}
+
+      {/* BARRA NAVEGACIÓN */}
       <nav className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md border-t border-slate-200 bg-background/95 backdrop-blur-lg pb-safe z-30">
         <div className="grid grid-cols-4 p-2 gap-2">
-          <button
-            onClick={() => setActiveTab('add')}
-            className={cn(
-              "flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95",
-              activeTab === 'add'
-                ? "bg-primary-50 text-primary-600"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            )}
-          >
-            <ReceiptText className={cn("w-6 h-6 mb-1", activeTab === 'add' && "fill-current text-primary-600/20")} />
-            <span className="text-[10px] font-medium">Gastos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('funds')}
-            className={cn(
-              "flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95",
-              activeTab === 'funds'
-                ? "bg-primary-50 text-primary-600"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            )}
-          >
-            <Wallet className={cn("w-6 h-6 mb-1", activeTab === 'funds' && "fill-current")} />
-            <span className="text-[10px] font-medium">Fondos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={cn(
-              "flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95",
-              activeTab === 'history'
-                ? "bg-primary-50 text-primary-600"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            )}
-          >
-            <History className="w-6 h-6 mb-1" />
-            <span className="text-[10px] font-medium">Historial</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('contacts')}
-            className={cn(
-              "flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95",
-              activeTab === 'contacts'
-                ? "bg-primary-50 text-primary-600"
-                : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            )}
-          >
-            <Users className={cn("w-6 h-6 mb-1", activeTab === 'contacts' && "fill-current")} />
-            <span className="text-[10px] font-medium">Contactos</span>
-          </button>
+          <button onClick={() => setActiveTab('add')} className={cn("flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95", activeTab === 'add' ? "bg-primary-50 text-primary-600" : "text-slate-400 hover:bg-slate-100")}><ReceiptText className={cn("w-6 h-6 mb-1", activeTab === 'add' && "fill-current text-primary-600/20")} /><span className="text-[10px] font-medium">Gastos</span></button>
+          <button onClick={() => setActiveTab('funds')} className={cn("flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95", activeTab === 'funds' ? "bg-primary-50 text-primary-600" : "text-slate-400 hover:bg-slate-100")}><Wallet className={cn("w-6 h-6 mb-1", activeTab === 'funds' && "fill-current")} /><span className="text-[10px] font-medium">Fondos</span></button>
+          <button onClick={() => setActiveTab('history')} className={cn("flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95", activeTab === 'history' ? "bg-primary-50 text-primary-600" : "text-slate-400 hover:bg-slate-100")}><History className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Historial</span></button>
+          <button onClick={() => setActiveTab('contacts')} className={cn("flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95", activeTab === 'contacts' ? "bg-primary-50 text-primary-600" : "text-slate-400 hover:bg-slate-100")}><Users className={cn("w-6 h-6 mb-1", activeTab === 'contacts' && "fill-current")} /><span className="text-[10px] font-medium">Contactos</span></button>
         </div>
       </nav>
     </MobileLayout>
   );
 }
 
-export default App; 
+export default App;
