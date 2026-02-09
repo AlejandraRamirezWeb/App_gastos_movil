@@ -21,34 +21,15 @@ import { NotificationsModal } from './components/NotificationsModal';
 
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
-
-  // --- HOOKS ---
-
-  // 1. Contactos: Extraemos TODAS las funciones nuevas (updateContactName, search..., request...)
-  const {
-    contacts,
-    loading: contactsLoading,
-    addContact,
-    deleteContact,
-    searchContactByCode,
-    requestContact,
-    updateContactName
-  } = useContacts(user?.id);
-
-  // 2. Gastos
+  const { contacts, loading: contactsLoading, addContact, deleteContact, searchContactByCode, requestContact, updateContactName } = useContacts(user?.id);
   const { expenses, loading: expensesLoading, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
-
-  // 3. Fondos
   const { totalFunds, addFunds, funds, updateFund, deleteFund } = useFunds(user?.id);
-
-  // 4. Notificaciones
   const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
-  // 5. Publicidad
+  // Hook de Publicidad
   const { showInterstitial } = useAdMob();
   const [expenseAdCounter, setExpenseAdCounter] = useState(0);
 
-  // --- ESTADOS UI ---
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -58,7 +39,6 @@ function App() {
   const [myProfile, setMyProfile] = useState<any>(null);
   const { currency, setCurrency, convertFromBase } = useSettings();
 
-  // Cargar perfil para obtener "Mi Código"
   useEffect(() => {
     if (user) {
       supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -66,7 +46,6 @@ function App() {
     }
   }, [user]);
 
-  // --- CÁLCULOS ---
   const totalExpenses = convertFromBase(expenses.reduce((acc, curr) => acc + curr.amount, 0));
   const totalIncome = convertFromBase(totalFunds);
   const currentBalance = totalIncome - totalExpenses;
@@ -78,31 +57,33 @@ function App() {
 
   const convertedTransactions = transactions.map(t => ({ ...t, amount: convertFromBase(t.amount) })) as Expense[];
 
-  // --- WRAPPERS CON PUBLICIDAD ---
+  // --- WRAPPERS CON PUBLICIDAD REFORZADA ---
 
   const handleAddExpenseWithAd = async (expense: any) => {
     await addExpense(expense);
-    // Lógica del contador para anuncios
     const newCount = expenseAdCounter + 1;
     setExpenseAdCounter(newCount);
-    if (newCount % 2 === 0) showInterstitial();
+
+    // Mostramos anuncio cada 2 gastos
+    if (newCount % 2 === 0) {
+      showInterstitial();
+    }
   };
 
   const handleAddFundsWithAd = async (amount: number, description?: string) => {
     await addFunds(amount, description);
+    // En fondos siempre mostramos anuncio
     showInterstitial();
   };
 
-  // Wrapper para añadir contacto manual (Legacy)
   const handleAddContactWithAd = async (name: string) => {
     await addContact(name);
     showInterstitial();
   };
 
-  // Wrapper para SOLICITUD DE AMISTAD (El flujo nuevo con código)
   const handleRequestContactWithAd = async (friendId: string, name: string) => {
     const success = await requestContact(friendId, name);
-    if (success) showInterstitial(); // Mostramos anuncio al enviar la solicitud
+    if (success) showInterstitial();
     return success;
   };
 
@@ -111,6 +92,7 @@ function App() {
     if (!transaction) return;
     if (transaction.type === 'income') await deleteFund(id);
     else await deleteExpense(id);
+    // Al eliminar siempre mostramos anuncio
     showInterstitial();
   };
 
@@ -135,7 +117,6 @@ function App() {
 
   return (
     <MobileLayout className="flex flex-col">
-      {/* HEADER */}
       <header className="px-6 pt-12 pb-6 flex justify-between items-center bg-background/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200">
         <div className="flex items-center gap-4">
           <div><h1 className="text-2xl font-bold text-slate-950">Mis gastos</h1><p className="text-sm text-slate-900">Controla tu dinero</p></div>
@@ -161,7 +142,6 @@ function App() {
         </div>
       </header>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto scrollbar-hide bg-slate-50 pb-24">
         <div className="min-h-full">
           {activeTab === 'add' ? (
@@ -197,26 +177,23 @@ function App() {
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* COMPONENTE CONTACTOS CON TODAS LAS PROPS NUEVAS */}
               <ContactsList
                 contacts={contacts}
                 expenses={convertedTransactions.filter(t => t.type === 'expense')}
-                onAddContact={handleAddContactWithAd} // Legacy
+                onAddContact={handleAddContactWithAd}
                 onDeleteContact={deleteContact}
-                onSearchCode={searchContactByCode}        // 1. Buscar
-                onRequestContact={handleRequestContactWithAd} // 2. Enviar (con publicidad)
-                onUpdateContactName={updateContactName}   // 3. Renombrar (Lápiz)
-                myFriendCode={myProfile?.friend_code}     // 4. Mostrar mi código
+                onSearchCode={searchContactByCode}
+                onRequestContact={handleRequestContactWithAd}
+                onUpdateContactName={updateContactName}
+                myFriendCode={myProfile?.friend_code}
               />
             </div>
           )}
         </div>
       </main>
 
-      {/* MODAL NOTIFICACIONES */}
       {showNotifications && user && <NotificationsModal userId={user.id} onClose={() => setShowNotifications(false)} />}
 
-      {/* BARRA NAVEGACIÓN */}
       <nav className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-md border-t border-slate-200 bg-background/95 backdrop-blur-lg pb-safe z-30">
         <div className="grid grid-cols-4 p-2 gap-2">
           <button onClick={() => setActiveTab('add')} className={cn("flex flex-col items-center justify-center py-3 rounded-xl transition-all active:scale-95", activeTab === 'add' ? "bg-primary-50 text-primary-600" : "text-slate-400 hover:bg-slate-100")}><ReceiptText className={cn("w-6 h-6 mb-1", activeTab === 'add' && "fill-current text-primary-600/20")} /><span className="text-[10px] font-medium">Gastos</span></button>
