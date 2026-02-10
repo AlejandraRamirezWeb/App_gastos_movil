@@ -22,20 +22,16 @@ import { NotificationsModal } from './components/NotificationsModal';
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
 
-  // Data Hooks
+  // Hooks de datos
   const { contacts, searchContactByCode, requestContact, updateContactName, deleteContact, addContact } = useContacts(user?.id);
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
-
-  // IMPORTANT: Extracting all necessary functions from useFunds
   const { funds, totalFunds, addFunds, deleteFund, updateFund } = useFunds(user?.id);
-
   const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
-  // Ad Hook
+  // Hook de Publicidad
   const { showInterstitial } = useAdMob();
-  const [expenseAdCounter, setExpenseAdCounter] = useState(0);
 
-  // UI States
+  // Estados UI
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -52,22 +48,19 @@ function App() {
     }
   }, [user]);
 
-  // Totals calculations
+  // Cálculos
   const totalExpenses = convertFromBase(expenses.reduce((acc, curr) => acc + curr.amount, 0));
   const totalIncome = convertFromBase(totalFunds);
   const currentBalance = totalIncome - totalExpenses;
 
-  // --- UNIFIED TRANSACTION LIST (EXPENSES + INCOME) ---
+  // --- LISTA UNIFICADA ---
   const transactions = [
-    // 1. Map Expenses
     ...expenses.map(e => ({ ...e, type: 'expense' as const })),
-
-    // 2. Map Income (using real 'funds' list to enable deletion)
     ...(funds || []).map(f => ({
       id: f.id,
       amount: f.amount,
-      category: 'Ingreso',      // Wallet icon
-      date: f.created_at,       // Real date
+      category: 'Ingreso',
+      date: f.created_at,
       description: f.description || 'Ingreso',
       type: 'income' as const,
       user_id: f.user_id
@@ -76,43 +69,40 @@ function App() {
 
   const convertedTransactions = transactions.map(t => ({ ...t, amount: convertFromBase(t.amount) })) as Expense[];
 
-  // --- WRAPPERS WITH ADS ---
+  // --- LÓGICA DE ANUNCIOS (NUEVO ENFOQUE) ---
 
+  // 1. AÑADIR GASTO -> SIEMPRE ANUNCIO
   const handleAddExpenseWithAd = async (expense: any) => {
     await addExpense(expense);
-    const newCount = expenseAdCounter + 1;
-    setExpenseAdCounter(newCount);
-    // Ad every 2 expenses
-    if (newCount % 2 === 0) showInterstitial();
-  };
-
-  const handleAddFundsWithAd = async (amount: number, description?: string) => {
-    await addFunds(amount, description);
-    // Ad ALWAYS when adding funds
     showInterstitial();
   };
 
-  const handleRequestContactWithAd = async (friendId: string, name: string) => {
-    const success = await requestContact(friendId, name);
-    if (success) showInterstitial();
-    return success;
+  // 2. AÑADIR FONDO -> SIEMPRE ANUNCIO
+  const handleAddFundsWithAd = async (amount: number, description?: string) => {
+    await addFunds(amount, description);
+    showInterstitial();
   };
 
-  // Smart wrapper for deletion
-  const handleDeleteTransactionWithAd = async (id: string) => {
+  // 3. BORRAR -> SIN ANUNCIO (Limpiado)
+  const handleDeleteTransaction = async (id: string) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
     if (transaction.type === 'income') {
-      await deleteFund(id); // Delete income
+      await deleteFund(id);
     } else {
-      await deleteExpense(id); // Delete expense
+      await deleteExpense(id);
     }
-    // Ad ALWAYS on delete
-    showInterstitial();
+    // AQUÍ YA NO HAY showInterstitial()
   };
 
-  // Smart wrapper for editing (no ad)
+  // 4. CONTACTOS -> SIN ANUNCIO (Limpiado)
+  const handleRequestContactNoAd = async (friendId: string, name: string) => {
+    const success = await requestContact(friendId, name);
+    return success;
+  };
+
+  // Editar -> Sin anuncio
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
@@ -133,14 +123,13 @@ function App() {
         <div className="flex items-center gap-4">
           <div><h1 className="text-2xl font-bold text-slate-950">Mis gastos</h1></div>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setShowNotifications(true); refreshNotifications(); }} className="relative p-2 text-slate-400 hover:text-primary-600 transition-colors">
+            <button onClick={() => { setShowNotifications(true); refreshNotifications(); }} className="relative p-2 text-slate-400">
               <Bell className="w-6 h-6" />
-              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />}
             </button>
 
-            {/* --- SETTINGS MENU --- */}
             <div className="relative">
-              <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400 hover:text-primary-600 transition-colors">
+              <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400">
                 <SettingsIcon className="w-6 h-6" />
               </button>
               {showSettings && (
@@ -148,27 +137,23 @@ function App() {
                   <div className="px-4 py-2 border-b border-slate-100 mb-1">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moneda</p>
                   </div>
-                  <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'COP' && "text-primary-600 font-bold")}>Peso (COP)</button>
-                  <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'AUD' && "text-primary-600 font-bold")}>Dólar (AUD)</button>
+                  <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'COP' && "text-primary-600 font-bold")}>Peso (COP)</button>
+                  <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'AUD' && "text-primary-600 font-bold")}>Dólar (AUD)</button>
 
-                  {/* --- AD TEST BUTTON (New Approach) --- */}
+                  {/* Botón de prueba manual */}
                   <div className="border-t border-slate-100 mt-1 pt-1">
                     <button
-                      onClick={() => {
-                        alert("⚠️ Enviando orden de anuncio manual...");
-                        showInterstitial();
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm text-purple-600 font-medium hover:bg-purple-50 flex items-center gap-2 transition-colors"
+                      onClick={() => { alert("Probando anuncio..."); showInterstitial(); }}
+                      className="w-full px-4 py-3 text-left text-sm text-purple-600 font-medium hover:bg-purple-50 flex items-center gap-2"
                     >
                       <span>📺 Probar Anuncio</span>
                     </button>
                   </div>
-                  {/* ------------------------------------------------ */}
                 </div>
               )}
             </div>
 
-            <button onClick={signOut} className="p-2 text-slate-400 hover:text-red-600 transition-colors"><LogOut className="w-6 h-6" /></button>
+            <button onClick={signOut} className="p-2 text-slate-400"><LogOut className="w-6 h-6" /></button>
           </div>
         </div>
       </header>
@@ -195,8 +180,8 @@ function App() {
               contacts={contacts}
               userId={user.id}
               selectedDate={selectedDate}
-              onDelete={handleDeleteTransactionWithAd} // Now handles deleting income and expenses
-              onUpdate={handleUpdateTransaction}       // Now handles editing income and expenses
+              onDelete={handleDeleteTransaction} // SIN ANUNCIO
+              onUpdate={handleUpdateTransaction}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               selectedCategory={selectedCategory}
@@ -212,7 +197,7 @@ function App() {
             onAddContact={addContact}
             onDeleteContact={deleteContact}
             onSearchCode={searchContactByCode}
-            onRequestContact={handleRequestContactWithAd}
+            onRequestContact={handleRequestContactNoAd} // SIN ANUNCIO
             onUpdateContactName={updateContactName}
             myFriendCode={myProfile?.friend_code}
           />

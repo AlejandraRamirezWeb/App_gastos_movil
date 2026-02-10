@@ -17,7 +17,6 @@ export function useFunds(userId: string | undefined) {
     const fetchFunds = async () => {
         if (!userId) return;
 
-        // Obtenemos la LISTA completa de ingresos
         const { data, error } = await supabase
             .from('funds')
             .select('*')
@@ -26,16 +25,15 @@ export function useFunds(userId: string | undefined) {
 
         if (!error && data) {
             setFunds(data);
-            // Calculamos el total sumando la lista
-            const total = data.reduce((acc, curr) => acc + curr.amount, 0);
-            setTotalFunds(total);
+            // Calcular total sumando la lista
+            setTotalFunds(data.reduce((acc, curr) => acc + curr.amount, 0));
         }
         setLoading(false);
     };
 
     useEffect(() => {
         fetchFunds();
-        // Suscripción en tiempo real
+        // Suscripción a cambios en tiempo real
         const channel = supabase.channel('funds_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'funds' }, fetchFunds)
             .subscribe();
@@ -53,13 +51,11 @@ export function useFunds(userId: string | undefined) {
         if (!error) fetchFunds();
     };
 
-    // Función para BORRAR un ingreso específico
     const deleteFund = async (id: string) => {
         const { error } = await supabase.from('funds').delete().eq('id', id);
         if (!error) fetchFunds();
     };
 
-    // Función para EDITAR un ingreso
     const updateFund = async (id: string, updates: Partial<Fund>) => {
         const { error } = await supabase.from('funds').update(updates).eq('id', id);
         if (!error) fetchFunds();

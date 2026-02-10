@@ -1,31 +1,26 @@
 export const useAdMob = () => {
     const showInterstitial = () => {
-        console.log("⚡ Iniciando protocolo de anuncio...");
+        console.log("⚡ Iniciando protocolo de anuncio (Cada acción)...");
 
-        // 1. API Moderna (Median)
-        // Usamos (window as any) para que TypeScript no se queje
+        // 1. Intentar API JavaScript Moderna (Median)
         if ((window as any).median?.admob) {
-            console.log("✅ API Median detectada. Ejecutando showInterstitial...");
+            console.log("✅ API Median JS detectada.");
             (window as any).median.admob.showInterstitial();
             return;
         }
 
-        // 2. API Legacy (Gonative)
+        // 2. Intentar API Legacy (Gonative)
         if ((window as any).gonative?.admob) {
-            console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
+            console.log("✅ API Gonative JS detectada.");
             (window as any).gonative.admob.showInterstitial();
             return;
         }
 
-        // 2. Intentar Esquemas de URL (Fuerza Bruta)
-        console.log("⚠️ APIs JS no encontradas. Probando esquemas nativos...");
-
-        // Intenta primero el esquema moderno
+        // 3. Fallback: Forzar navegación nativa
+        console.log("⚠️ APIs JS no encontradas. Forzando esquema nativo...");
         window.location.href = "median://admob/interstitial/show";
 
-        // Si en 500ms no ha pasado nada, intenta el antiguo
         setTimeout(() => {
-            console.log("🔄 Reintentando con esquema legacy...");
             window.location.href = "gonative://admob/interstitial/show";
         }, 500);
     };
