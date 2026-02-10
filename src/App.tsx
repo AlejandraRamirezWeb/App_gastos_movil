@@ -74,13 +74,11 @@ function App() {
   // 1. AÑADIR GASTO -> SIEMPRE ANUNCIO
   const handleAddExpenseWithAd = async (expense: any) => {
     await addExpense(expense);
-    showInterstitial();
   };
 
   // 2. AÑADIR FONDO -> SIEMPRE ANUNCIO
   const handleAddFundsWithAd = async (amount: number, description?: string) => {
     await addFunds(amount, description);
-    showInterstitial();
   };
 
   // 3. BORRAR -> SIN ANUNCIO (Limpiado)

@@ -30,12 +30,7 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
     const [selectedContactId, setSelectedContactId] = useState<string>('');
     const [splitPercentage, setSplitPercentage] = useState(50);
 
-    // Función para solicitar el anuncio a la app nativa (Median/AdMob)
-    const solicitarAnuncioAdMob = () => {
-        if (navigator.userAgent.includes('median')) {
-            window.location.href = "gonative://admob/interstitial/show";
-        }
-    };
+
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value.replace(/\D/g, '');
@@ -99,8 +94,7 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
         // Ejecutar la adición del gasto
         onAdd(expenseData);
 
-        // DISPARAR ANUNCIO
-        solicitarAnuncioAdMob();
+
 
         // Limpiar formulario
         setAmount('');
