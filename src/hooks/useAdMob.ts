@@ -1,26 +1,31 @@
 export const useAdMob = () => {
     const showInterstitial = () => {
-        console.log("⚡ Intentando disparar anuncio...");
+        console.log("⚡ Iniciando protocolo de anuncio...");
 
-        // 1. API Moderna (Median)
-        // Usamos (window as any) para que TypeScript no se queje
+        // 1. Intentar API JavaScript (La más limpia)
+        // Usamos (window as any) para evitar errores de TypeScript
         if ((window as any).median?.admob) {
-            console.log("✅ API Median detectada. Ejecutando showInterstitial...");
+            console.log("✅ API Median JS detectada.");
             (window as any).median.admob.showInterstitial();
             return;
         }
-
-        // 2. API Legacy (Gonative)
         if ((window as any).gonative?.admob) {
-            console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
+            console.log("✅ API Gonative JS detectada.");
             (window as any).gonative.admob.showInterstitial();
             return;
         }
 
-        // 3. FALLBACK: Navegación Nativa (Si las APIs fallan)
-        // Cambiar la URL es la forma más fiable de forzar al celular a procesar el comando
-        console.log("⚠️ APIs JS no encontradas. Forzando comando nativo...");
-        window.location.href = "gonative://admob/interstitial/show";
+        // 2. Intentar Esquemas de URL (Fuerza Bruta)
+        console.log("⚠️ APIs JS no encontradas. Probando esquemas nativos...");
+
+        // Intenta primero el esquema moderno
+        window.location.href = "median://admob/interstitial/show";
+
+        // Si en 500ms no ha pasado nada, intenta el antiguo
+        setTimeout(() => {
+            console.log("🔄 Reintentando con esquema legacy...");
+            window.location.href = "gonative://admob/interstitial/show";
+        }, 500);
     };
 
     return { showInterstitial };
