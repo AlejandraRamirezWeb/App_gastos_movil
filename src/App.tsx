@@ -25,11 +25,13 @@ function App() {
   // Hooks de datos
   const { contacts, searchContactByCode, requestContact, updateContactName, deleteContact, addContact } = useContacts(user?.id);
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
-  // IMPORTANTE: Ahora extraemos 'funds' (la lista), 'deleteFund' y 'updateFund'
+
+  // IMPORTANTE: Extraemos todas las funciones necesarias de useFunds
   const { funds, totalFunds, addFunds, deleteFund, updateFund } = useFunds(user?.id);
+
   const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
-  // Publicidad
+  // Hook de Publicidad
   const { showInterstitial } = useAdMob();
   const [expenseAdCounter, setExpenseAdCounter] = useState(0);
 
@@ -55,16 +57,17 @@ function App() {
   const totalIncome = convertFromBase(totalFunds);
   const currentBalance = totalIncome - totalExpenses;
 
-  // --- LÓGICA CORREGIDA PARA MOSTRAR INGRESOS INDIVIDUALES ---
+  // --- LISTA UNIFICADA DE TRANSACCIONES (GASTOS + INGRESOS) ---
   const transactions = [
-    // 1. Gastos
+    // 1. Mapear Gastos
     ...expenses.map(e => ({ ...e, type: 'expense' as const })),
-    // 2. Ingresos (Ahora mapeamos la lista real de 'funds')
+
+    // 2. Mapear Ingresos (usando la lista 'funds' real para poder borrarlos)
     ...(funds || []).map(f => ({
       id: f.id,
       amount: f.amount,
-      category: 'Ingreso',      // Para que use el icono de billetera
-      date: f.created_at,       // Fecha real de creación
+      category: 'Ingreso',      // Icono de billetera
+      date: f.created_at,       // Fecha real
       description: f.description || 'Ingreso',
       type: 'income' as const,
       user_id: f.user_id
@@ -85,7 +88,7 @@ function App() {
 
   const handleAddFundsWithAd = async (amount: number, description?: string) => {
     await addFunds(amount, description);
-    // Anuncio SIEMPRE al agregar fondos
+    // Anuncio SIEMPRE al añadir fondos
     showInterstitial();
   };
 
@@ -95,23 +98,21 @@ function App() {
     return success;
   };
 
-  // --- LÓGICA PARA BORRAR (GASTOS O INGRESOS) CON ANUNCIO ---
+  // Wrapper inteligente para borrar
   const handleDeleteTransactionWithAd = async (id: string) => {
-    // Buscamos qué tipo de transacción es
     const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
 
-    if (transaction) {
-      if (transaction.type === 'income') {
-        await deleteFund(id); // Borra de la tabla 'funds'
-      } else {
-        await deleteExpense(id); // Borra de la tabla 'expenses'
-      }
-      // Anuncio SIEMPRE al borrar
-      showInterstitial();
+    if (transaction.type === 'income') {
+      await deleteFund(id); // Borrar ingreso
+    } else {
+      await deleteExpense(id); // Borrar gasto
     }
+    // Anuncio SIEMPRE al borrar
+    showInterstitial();
   };
 
-  // Lógica para editar (sin anuncio, opcional)
+  // Wrapper inteligente para editar (sin anuncio)
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
@@ -132,27 +133,47 @@ function App() {
         <div className="flex items-center gap-4">
           <div><h1 className="text-2xl font-bold text-slate-950">Mis gastos</h1></div>
           <div className="flex items-center gap-2">
-            <button onClick={() => { setShowNotifications(true); refreshNotifications(); }} className="relative p-2 text-slate-400">
+            <button onClick={() => { setShowNotifications(true); refreshNotifications(); }} className="relative p-2 text-slate-400 hover:text-primary-600 transition-colors">
               <Bell className="w-6 h-6" />
-              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />}
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
             </button>
+
+            {/* --- MENÚ DE CONFIGURACIÓN --- */}
             <div className="relative">
-              <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400">
+              <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400 hover:text-primary-600 transition-colors">
                 <SettingsIcon className="w-6 h-6" />
               </button>
               {showSettings && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95">
-                  <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm", currency === 'COP' && "text-primary-600 font-bold bg-slate-50")}>Peso (COP)</button>
-                  <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm", currency === 'AUD' && "text-primary-600 font-bold bg-slate-50")}>Dólar (AUD)</button>
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 origin-top-right">
+                  <div className="px-4 py-2 border-b border-slate-100 mb-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moneda</p>
+                  </div>
+                  <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'COP' && "text-primary-600 font-bold")}>Peso (COP)</button>
+                  <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'AUD' && "text-primary-600 font-bold")}>Dólar (AUD)</button>
+
+                  {/* --- BOTÓN DE PRUEBA DE ANUNCIOS (Nuevo Enfoque) --- */}
+                  <div className="border-t border-slate-100 mt-1 pt-1">
+                    <button
+                      onClick={() => {
+                        alert("⚠️ Enviando orden de anuncio manual...");
+                        showInterstitial();
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm text-purple-600 font-medium hover:bg-purple-50 flex items-center gap-2 transition-colors"
+                    >
+                      <span>📺 Probar Anuncio</span>
+                    </button>
+                  </div>
+                  {/* ------------------------------------------------ */}
                 </div>
               )}
             </div>
-            <button onClick={signOut} className="p-2 text-slate-400"><LogOut className="w-6 h-6" /></button>
+
+            <button onClick={signOut} className="p-2 text-slate-400 hover:text-red-600 transition-colors"><LogOut className="w-6 h-6" /></button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide">
         {activeTab === 'add' && <ExpenseForm onAdd={handleAddExpenseWithAd} contacts={contacts} />}
 
         {activeTab === 'funds' && (
@@ -174,8 +195,8 @@ function App() {
               contacts={contacts}
               userId={user.id}
               selectedDate={selectedDate}
-              onDelete={handleDeleteTransactionWithAd} // Conectado a la lógica de borrado inteligente
-              onUpdate={handleUpdateTransaction}       // Conectado a la lógica de edición inteligente
+              onDelete={handleDeleteTransactionWithAd} // Ahora maneja borrar ingresos y gastos
+              onUpdate={handleUpdateTransaction}       // Ahora maneja editar ingresos y gastos
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               selectedCategory={selectedCategory}
@@ -200,11 +221,11 @@ function App() {
 
       {showNotifications && <NotificationsModal userId={user.id} onClose={() => setShowNotifications(false)} />}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around pb-safe">
-        <button onClick={() => setActiveTab('add')} className={cn("flex flex-col items-center", activeTab === 'add' ? "text-primary-600" : "text-slate-400")}><ReceiptText className="w-6 h-6" /><span className="text-[10px]">Gastos</span></button>
-        <button onClick={() => setActiveTab('funds')} className={cn("flex flex-col items-center", activeTab === 'funds' ? "text-primary-600" : "text-slate-400")}><Wallet className="w-6 h-6" /><span className="text-[10px]">Fondos</span></button>
-        <button onClick={() => setActiveTab('history')} className={cn("flex flex-col items-center", activeTab === 'history' ? "text-primary-600" : "text-slate-400")}><History className="w-6 h-6" /><span className="text-[10px]">Historial</span></button>
-        <button onClick={() => setActiveTab('contacts')} className={cn("flex flex-col items-center", activeTab === 'contacts' ? "text-primary-600" : "text-slate-400")}><Users className="w-6 h-6" /><span className="text-[10px]">Contactos</span></button>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-slate-200 p-2 flex justify-around pb-safe z-30 max-w-md mx-auto">
+        <button onClick={() => setActiveTab('add')} className={cn("flex flex-col items-center justify-center w-16 py-1 rounded-xl transition-all", activeTab === 'add' ? "text-primary-600 bg-primary-50" : "text-slate-400 hover:bg-slate-50")}><ReceiptText className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Gastos</span></button>
+        <button onClick={() => setActiveTab('funds')} className={cn("flex flex-col items-center justify-center w-16 py-1 rounded-xl transition-all", activeTab === 'funds' ? "text-primary-600 bg-primary-50" : "text-slate-400 hover:bg-slate-50")}><Wallet className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Fondos</span></button>
+        <button onClick={() => setActiveTab('history')} className={cn("flex flex-col items-center justify-center w-16 py-1 rounded-xl transition-all", activeTab === 'history' ? "text-primary-600 bg-primary-50" : "text-slate-400 hover:bg-slate-50")}><History className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Historial</span></button>
+        <button onClick={() => setActiveTab('contacts')} className={cn("flex flex-col items-center justify-center w-16 py-1 rounded-xl transition-all", activeTab === 'contacts' ? "text-primary-600 bg-primary-50" : "text-slate-400 hover:bg-slate-50")}><Users className="w-6 h-6 mb-1" /><span className="text-[10px] font-medium">Contactos</span></button>
       </nav>
     </MobileLayout>
   );

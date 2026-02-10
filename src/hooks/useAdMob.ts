@@ -1,20 +1,34 @@
 export const useAdMob = () => {
     const showInterstitial = () => {
-        // Detectamos si estamos en la App (Median/GoNative)
-        const isMobileApp =
-            (window as any).gonative ||
-            navigator.userAgent.includes('median') ||
-            navigator.userAgent.includes('gonative');
+        console.log("⚡ Intentando disparar anuncio...");
 
-        if (isMobileApp) {
-            console.log("📱 Ejecutando comando AdMob...");
-            // Pequeño retraso para asegurar que la UI no bloquee la petición
-            setTimeout(() => {
-                window.location.href = "gonative://admob/interstitial/show";
-            }, 100);
-        } else {
-            console.log("💻 Modo Web: El anuncio no saldrá aquí.");
+        // 1. Intentar acceder al objeto global 'median' (API Moderna)
+        // Usamos (window as any) para evitar el error de TypeScript
+        if ((window as any).median?.admob) {
+            console.log("✅ API Median detectada. Ejecutando showInterstitial...");
+            (window as any).median.admob.showInterstitial();
+            return;
         }
+
+        // 2. Intentar acceder al objeto global 'gonative' (API Legacy)
+        if ((window as any).gonative?.admob) {
+            console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
+            (window as any).gonative.admob.showInterstitial();
+            return;
+        }
+
+        // 3. ENFOQUE NUEVO: Inyección de Iframe (Si las APIs fallan)
+        // Esto fuerza al navegador del móvil a procesar el esquema URL
+        console.log("⚠️ APIs no detectadas. Usando inyección de Iframe forzada...");
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("src", "gonative://admob/interstitial/show");
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+
+        // Limpiamos el iframe después de 1 segundo
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
     };
 
     return { showInterstitial };
