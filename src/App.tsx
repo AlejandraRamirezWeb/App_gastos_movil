@@ -22,20 +22,20 @@ import { NotificationsModal } from './components/NotificationsModal';
 function App() {
   const { user, loading: authLoading, signOut } = useAuth();
 
-  // Hooks de datos
+  // Data Hooks
   const { contacts, searchContactByCode, requestContact, updateContactName, deleteContact, addContact } = useContacts(user?.id);
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(user?.id);
 
-  // IMPORTANTE: Extraemos todas las funciones necesarias de useFunds
+  // IMPORTANT: Extracting all necessary functions from useFunds
   const { funds, totalFunds, addFunds, deleteFund, updateFund } = useFunds(user?.id);
 
   const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
-  // Hook de Publicidad
+  // Ad Hook
   const { showInterstitial } = useAdMob();
   const [expenseAdCounter, setExpenseAdCounter] = useState(0);
 
-  // Estados UI
+  // UI States
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
@@ -52,22 +52,22 @@ function App() {
     }
   }, [user]);
 
-  // Cálculos de totales
+  // Totals calculations
   const totalExpenses = convertFromBase(expenses.reduce((acc, curr) => acc + curr.amount, 0));
   const totalIncome = convertFromBase(totalFunds);
   const currentBalance = totalIncome - totalExpenses;
 
-  // --- LISTA UNIFICADA DE TRANSACCIONES (GASTOS + INGRESOS) ---
+  // --- UNIFIED TRANSACTION LIST (EXPENSES + INCOME) ---
   const transactions = [
-    // 1. Mapear Gastos
+    // 1. Map Expenses
     ...expenses.map(e => ({ ...e, type: 'expense' as const })),
 
-    // 2. Mapear Ingresos (usando la lista 'funds' real para poder borrarlos)
+    // 2. Map Income (using real 'funds' list to enable deletion)
     ...(funds || []).map(f => ({
       id: f.id,
       amount: f.amount,
-      category: 'Ingreso',      // Icono de billetera
-      date: f.created_at,       // Fecha real
+      category: 'Ingreso',      // Wallet icon
+      date: f.created_at,       // Real date
       description: f.description || 'Ingreso',
       type: 'income' as const,
       user_id: f.user_id
@@ -76,19 +76,19 @@ function App() {
 
   const convertedTransactions = transactions.map(t => ({ ...t, amount: convertFromBase(t.amount) })) as Expense[];
 
-  // --- WRAPPERS CON PUBLICIDAD ---
+  // --- WRAPPERS WITH ADS ---
 
   const handleAddExpenseWithAd = async (expense: any) => {
     await addExpense(expense);
     const newCount = expenseAdCounter + 1;
     setExpenseAdCounter(newCount);
-    // Anuncio cada 2 gastos
+    // Ad every 2 expenses
     if (newCount % 2 === 0) showInterstitial();
   };
 
   const handleAddFundsWithAd = async (amount: number, description?: string) => {
     await addFunds(amount, description);
-    // Anuncio SIEMPRE al añadir fondos
+    // Ad ALWAYS when adding funds
     showInterstitial();
   };
 
@@ -98,21 +98,21 @@ function App() {
     return success;
   };
 
-  // Wrapper inteligente para borrar
+  // Smart wrapper for deletion
   const handleDeleteTransactionWithAd = async (id: string) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
     if (transaction.type === 'income') {
-      await deleteFund(id); // Borrar ingreso
+      await deleteFund(id); // Delete income
     } else {
-      await deleteExpense(id); // Borrar gasto
+      await deleteExpense(id); // Delete expense
     }
-    // Anuncio SIEMPRE al borrar
+    // Ad ALWAYS on delete
     showInterstitial();
   };
 
-  // Wrapper inteligente para editar (sin anuncio)
+  // Smart wrapper for editing (no ad)
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
@@ -138,7 +138,7 @@ function App() {
               {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
             </button>
 
-            {/* --- MENÚ DE CONFIGURACIÓN --- */}
+            {/* --- SETTINGS MENU --- */}
             <div className="relative">
               <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-slate-400 hover:text-primary-600 transition-colors">
                 <SettingsIcon className="w-6 h-6" />
@@ -151,7 +151,7 @@ function App() {
                   <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'COP' && "text-primary-600 font-bold")}>Peso (COP)</button>
                   <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50 transition-colors", currency === 'AUD' && "text-primary-600 font-bold")}>Dólar (AUD)</button>
 
-                  {/* --- BOTÓN DE PRUEBA DE ANUNCIOS (Nuevo Enfoque) --- */}
+                  {/* --- AD TEST BUTTON (New Approach) --- */}
                   <div className="border-t border-slate-100 mt-1 pt-1">
                     <button
                       onClick={() => {
@@ -195,8 +195,8 @@ function App() {
               contacts={contacts}
               userId={user.id}
               selectedDate={selectedDate}
-              onDelete={handleDeleteTransactionWithAd} // Ahora maneja borrar ingresos y gastos
-              onUpdate={handleUpdateTransaction}       // Ahora maneja editar ingresos y gastos
+              onDelete={handleDeleteTransactionWithAd} // Now handles deleting income and expenses
+              onUpdate={handleUpdateTransaction}       // Now handles editing income and expenses
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               selectedCategory={selectedCategory}
