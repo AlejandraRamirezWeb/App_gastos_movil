@@ -4,17 +4,39 @@ export const useAdMob = () => {
 
         // 1. API Moderna (Median)
         // Usamos (window as any) para que TypeScript no se queje
-        if ((window as any).median?.admob) {
-            console.log("✅ API Median detectada. Ejecutando showInterstitial...");
-            (window as any).median.admob.showInterstitial();
-            return;
+        const medianAdmob = (window as any).median?.admob;
+        if (medianAdmob) {
+            if (typeof medianAdmob.showInterstitial === "function") {
+                console.log("✅ API Median detectada. Ejecutando showInterstitial...");
+                medianAdmob.showInterstitial();
+                return;
+            }
+
+            if (typeof medianAdmob?.interstitial?.show === "function") {
+                console.log("✅ API Median detectada. Ejecutando interstitial.show...");
+                medianAdmob.interstitial.show();
+                return;
+            }
+
+            console.log("⚠️ API Median detectada pero sin método soportado. Usando fallback...");
         }
 
         // 2. API Legacy (Gonative)
-        if ((window as any).gonative?.admob) {
-            console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
-            (window as any).gonative.admob.showInterstitial();
-            return;
+        const gonativeAdmob = (window as any).gonative?.admob;
+        if (gonativeAdmob) {
+            if (typeof gonativeAdmob.showInterstitial === "function") {
+                console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
+                gonativeAdmob.showInterstitial();
+                return;
+            }
+
+            if (typeof gonativeAdmob?.interstitial?.show === "function") {
+                console.log("✅ API Gonative detectada. Ejecutando interstitial.show...");
+                gonativeAdmob.interstitial.show();
+                return;
+            }
+
+            console.log("⚠️ API Gonative detectada pero sin método soportado. Usando fallback...");
         }
 
         // 3. FALLBACK: Navegación Nativa (Si las APIs fallan)
