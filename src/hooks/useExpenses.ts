@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAdMob } from './useAdMob';
 
 export interface Expense {
     id: string;
@@ -18,6 +19,7 @@ export interface Expense {
 export function useExpenses(userId: string | undefined) {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
+    const { showInterstitial } = useAdMob();
 
     const fetchExpenses = async () => {
         if (!userId) {
@@ -77,6 +79,7 @@ export function useExpenses(userId: string | undefined) {
             } else {
                 alert('✅ Gasto guardado.');
             }
+            showInterstitial();
             await fetchExpenses();
         }
     };

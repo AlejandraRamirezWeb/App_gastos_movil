@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAdMob } from './useAdMob';
 
 export interface Fund {
     id: string;
@@ -13,6 +14,7 @@ export function useFunds(userId: string | undefined) {
     const [funds, setFunds] = useState<Fund[]>([]);
     const [totalFunds, setTotalFunds] = useState(0);
     const [loading, setLoading] = useState(true);
+    const { showInterstitial } = useAdMob();
 
     const fetchFunds = async () => {
         if (!userId) return;
@@ -48,7 +50,10 @@ export function useFunds(userId: string | undefined) {
             amount,
             description: description || 'Ingreso manual'
         }]);
-        if (!error) fetchFunds();
+        if (!error) {
+            showInterstitial();
+            fetchFunds();
+        }
     };
 
     const deleteFund = async (id: string) => {
