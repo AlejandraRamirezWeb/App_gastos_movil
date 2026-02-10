@@ -39,7 +39,14 @@ export function ExpenseForm({ onAdd, contacts }: ExpenseFormProps) {
             return;
         }
         const numberValue = parseInt(rawValue, 10);
-        const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+        const localeMapping: Record<string, string> = {
+            'COP': 'es-CO',
+            'AUD': 'en-AU',
+            'USD': 'en-US',
+            'EUR': 'es-ES',
+            'CAD': 'en-CA'
+        };
+        const locale = localeMapping[currency] || 'es-CO';
         setAmount(new Intl.NumberFormat(locale).format(numberValue));
     };
 

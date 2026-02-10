@@ -15,7 +15,6 @@ import { ReceiptText, History, Users, LogOut, Wallet, Bell, Settings as Settings
 import { cn } from './lib/utils';
 import { useSettings } from './contexts/SettingsContext';
 import { supabase } from './lib/supabase';
-import { useAdMob } from './hooks/useAdMob';
 import { useNotifications } from './hooks/useNotifications';
 import { NotificationsModal } from './components/NotificationsModal';
 
@@ -28,8 +27,7 @@ function App() {
   const { funds, totalFunds, addFunds, deleteFund, updateFund } = useFunds(user?.id);
   const { unreadCount, refresh: refreshNotifications } = useNotifications(user?.id);
 
-  // Hook de Publicidad
-  const { showInterstitial } = useAdMob();
+
 
   // Estados UI
   const [activeTab, setActiveTab] = useState<'add' | 'history' | 'contacts' | 'funds'>('add');
@@ -100,13 +98,13 @@ function App() {
     return success;
   };
 
-  // Editar -> Sin anuncio
+  // Editar -> Sin anuncio (Note: the hooks actually show ads now)
   const handleUpdateTransaction = async (id: string, updates: any) => {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
     if (transaction.type === 'income') {
-      await updateFund(id, { amount: updates.amount, description: updates.description });
+      await updateFund(id, updates);
     } else {
       await updateExpense(id, updates);
     }
@@ -137,16 +135,10 @@ function App() {
                   </div>
                   <button onClick={() => { setCurrency('COP'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'COP' && "text-primary-600 font-bold")}>Peso (COP)</button>
                   <button onClick={() => { setCurrency('AUD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'AUD' && "text-primary-600 font-bold")}>Dólar (AUD)</button>
+                  <button onClick={() => { setCurrency('USD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'USD' && "text-primary-600 font-bold")}>Dólar (USD)</button>
+                  <button onClick={() => { setCurrency('EUR'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'EUR' && "text-primary-600 font-bold")}>Euro (EUR)</button>
+                  <button onClick={() => { setCurrency('CAD'); setShowSettings(false); }} className={cn("w-full px-4 py-3 text-left text-sm hover:bg-slate-50", currency === 'CAD' && "text-primary-600 font-bold")}>Dólar (CAD)</button>
 
-                  {/* Botón de prueba manual */}
-                  <div className="border-t border-slate-100 mt-1 pt-1">
-                    <button
-                      onClick={() => { alert("Probando anuncio..."); showInterstitial(); }}
-                      className="w-full px-4 py-3 text-left text-sm text-purple-600 font-medium hover:bg-purple-50 flex items-center gap-2"
-                    >
-                      <span>📺 Probar Anuncio</span>
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

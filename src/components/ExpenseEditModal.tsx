@@ -23,7 +23,14 @@ const CATEGORIES = [
 export function ExpenseEditModal({ expense, onSave, onClose }: ExpenseEditModalProps) {
     const { currency, convertToBase } = useSettings();
     const [date, setDate] = useState(expense.date);
-    const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+    const localeMapping: Record<string, string> = {
+        'COP': 'es-CO',
+        'AUD': 'en-AU',
+        'USD': 'en-US',
+        'EUR': 'es-ES',
+        'CAD': 'en-CA'
+    };
+    const locale = localeMapping[currency] || 'es-CO';
     const [amount, setAmount] = useState(new Intl.NumberFormat(locale).format(expense.amount));
     const [category, setCategory] = useState(expense.category);
     const [description, setDescription] = useState(expense.description);

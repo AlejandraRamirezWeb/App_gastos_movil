@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAdMob } from './useAdMob';
 
 export interface Contact {
     id: string;
@@ -65,6 +66,8 @@ export function useContacts(userId: string | undefined) {
         return profile;
     };
 
+    const { showInterstitial } = useAdMob();
+
     // Enviar Solicitud (Paso 2)
     const requestContact = async (friendId: string, defaultName: string) => {
         if (!userId) return false;
@@ -78,6 +81,7 @@ export function useContacts(userId: string | undefined) {
             });
             if (error) throw error;
             await fetchContacts();
+            showInterstitial();
             return true;
         } catch (error: any) {
             alert('❌ Error: ' + error.message);

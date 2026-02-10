@@ -86,13 +86,21 @@ export function useExpenses(userId: string | undefined) {
 
     const updateExpense = async (id: string, updates: Partial<Expense>) => {
         const { error } = await supabase.from('expenses').update(updates).eq('id', id);
-        if (!error) fetchExpenses();
+        if (!error) {
+            showInterstitial();
+            fetchExpenses();
+        }
     };
 
     const deleteExpense = async (id: string) => {
         setExpenses(prev => prev.filter(e => e.id !== id));
         const { error } = await supabase.from('expenses').delete().eq('id', id);
-        if (error) fetchExpenses();
+        if (!error) {
+            showInterstitial();
+            fetchExpenses();
+        } else {
+            fetchExpenses();
+        }
     };
 
     return { expenses, loading, addExpense, updateExpense, deleteExpense };

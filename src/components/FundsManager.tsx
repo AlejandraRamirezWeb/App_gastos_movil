@@ -28,7 +28,14 @@ export function FundsManager({
             return;
         }
         const numberValue = parseInt(rawValue, 10);
-        const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+        const localeMapping: Record<string, string> = {
+            'COP': 'es-CO',
+            'AUD': 'en-AU',
+            'USD': 'en-US',
+            'EUR': 'es-ES',
+            'CAD': 'en-CA'
+        };
+        const locale = localeMapping[currency] || 'es-CO';
         setAmount(new Intl.NumberFormat(locale).format(numberValue));
     };
 
@@ -148,7 +155,7 @@ export function FundsManager({
                                 className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-2xl shadow-lg shadow-primary-900/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                             >
                                 <Plus className="w-5 h-5" />
-                                Confirmar Ingreso
+                                Confirmar ingreso
                             </button>
                         </div>
                     </form>

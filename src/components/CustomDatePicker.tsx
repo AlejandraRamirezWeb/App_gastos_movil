@@ -9,12 +9,11 @@ import {
     endOfWeek,
     eachDayOfInterval,
     isSameMonth,
-    isSameDay,
-    parseISO
+    isSameDay
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, parseSafeISO } from '../lib/utils';
 
 interface CustomDatePickerProps {
     value: string; // yyyy-MM-dd
@@ -25,9 +24,9 @@ interface CustomDatePickerProps {
 export function CustomDatePicker({ value, onChange, label }: CustomDatePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [view, setView] = useState<'days' | 'months' | 'years'>('days');
-    const [currentMonth, setCurrentMonth] = useState(value ? parseISO(value) : new Date());
+    const [currentMonth, setCurrentMonth] = useState(value ? parseSafeISO(value) : new Date());
 
-    const selectedDate = useMemo(() => value ? parseISO(value) : new Date(), [value]);
+    const selectedDate = useMemo(() => value ? parseSafeISO(value) : new Date(), [value]);
 
     const days = useMemo(() => {
         const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });

@@ -1,12 +1,20 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { type CurrencyCode } from '../contexts/SettingsContext'
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency: 'COP' | 'AUD' = 'COP'): string {
-    const locale = currency === 'COP' ? 'es-CO' : 'en-AU';
+export function formatCurrency(amount: number, currency: CurrencyCode = 'COP'): string {
+    const localeMapping: Record<CurrencyCode, string> = {
+        'COP': 'es-CO',
+        'AUD': 'en-AU',
+        'USD': 'en-US',
+        'EUR': 'es-ES',
+        'CAD': 'en-CA'
+    };
+    const locale = localeMapping[currency] || 'es-CO';
     const formatted = new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: currency,

@@ -107,7 +107,7 @@ export function ContactsList({ contacts, expenses, onDeleteContact, onSearchCode
 
             {/* LISTA CONTACTOS */}
             <div className="px-6 mb-4 flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 text-lg flex gap-2"><User className="w-5 h-5 text-primary-600" /> Mis Contactos <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{activeContacts.length}</span></h3>
+                <h3 className="font-bold text-slate-800 text-lg flex gap-2"><User className="w-5 h-5 text-primary-600" /> Mis contactos <span className="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{activeContacts.length}</span></h3>
                 <button onClick={() => { resetModal(); setShowAddModal(true) }} className="flex gap-2 bg-primary-50 text-primary-600 px-4 py-2 rounded-full text-sm font-bold active:scale-95"><Plus className="w-4 h-4" /> Añadir</button>
             </div>
 
@@ -182,7 +182,7 @@ export function ContactsList({ contacts, expenses, onDeleteContact, onSearchCode
                                         <p className="text-xs text-slate-500">{foundUser.email}</p>
                                     </div>
                                 </div>
-                                <button onClick={handleConfirmAdd} disabled={loading} className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-bold flex justify-center gap-2">{loading ? 'Enviando...' : <>Enviar Solicitud <ArrowRight className="w-4 h-4" /></>}</button>
+                                <button onClick={handleConfirmAdd} disabled={loading} className="w-full bg-primary-600 text-white py-3.5 rounded-xl font-bold flex justify-center gap-2">{loading ? 'Enviando...' : <>Enviar solicitud <ArrowRight className="w-4 h-4" /></>}</button>
                             </div>
                         )}
                         <button onClick={resetModal} className="w-full py-3 mt-2 text-slate-500 font-medium text-sm">Cancelar</button>

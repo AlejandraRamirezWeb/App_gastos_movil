@@ -58,12 +58,18 @@ export function useFunds(userId: string | undefined) {
 
     const deleteFund = async (id: string) => {
         const { error } = await supabase.from('funds').delete().eq('id', id);
-        if (!error) fetchFunds();
+        if (!error) {
+            showInterstitial();
+            fetchFunds();
+        }
     };
 
     const updateFund = async (id: string, updates: Partial<Fund>) => {
         const { error } = await supabase.from('funds').update(updates).eq('id', id);
-        if (!error) fetchFunds();
+        if (!error) {
+            showInterstitial();
+            fetchFunds();
+        }
     };
 
     return { funds, totalFunds, loading, addFunds, deleteFund, updateFund };
