@@ -2,15 +2,17 @@ export const useAdMob = () => {
     const showInterstitial = () => {
         console.log("⚡ Iniciando protocolo de anuncio...");
 
-        // 1. Intentar API JavaScript (La más limpia)
-        // Usamos (window as any) para evitar errores de TypeScript
+        // 1. API Moderna (Median)
+        // Usamos (window as any) para que TypeScript no se queje
         if ((window as any).median?.admob) {
-            console.log("✅ API Median JS detectada.");
+            console.log("✅ API Median detectada. Ejecutando showInterstitial...");
             (window as any).median.admob.showInterstitial();
             return;
         }
+
+        // 2. API Legacy (Gonative)
         if ((window as any).gonative?.admob) {
-            console.log("✅ API Gonative JS detectada.");
+            console.log("✅ API Gonative detectada. Ejecutando showInterstitial...");
             (window as any).gonative.admob.showInterstitial();
             return;
         }
