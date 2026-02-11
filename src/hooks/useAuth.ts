@@ -7,29 +7,39 @@ export function useAuth() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check active sessions and sets the user
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            setLoading(false); // Set loading to false as soon as we have a session/user
+        // Safety timeout: ensure loading is false after 3s max
+        const timer = setTimeout(() => {
+            setLoading(false);
+            console.log('useAuth: safety timeout reached');
+        }, 3000);
 
-            // Sync profile in background if user exists
-            if (currentUser) {
-                supabase.from('profiles').upsert({
-                    id: currentUser.id,
-                    email: currentUser.email
-                }).then(({ error }) => {
-                    if (error) console.error('useAuth: background profile sync error:', error);
-                    else console.log('useAuth: background profile sync success');
-                });
-            }
-        });
+        // Check active sessions and sets the user
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                const currentUser = session?.user ?? null;
+                setUser(currentUser);
+                setLoading(false);
+                clearTimeout(timer);
+
+                // Sync profile in background if user exists
+                if (currentUser) {
+                    supabase.from('profiles').upsert({
+                        id: currentUser.id,
+                        email: currentUser.email
+                    });
+                }
+            })
+            .catch(() => {
+                setLoading(false);
+                clearTimeout(timer);
+            });
 
         // Listen for changes on auth state (sign in, sign out, etc.)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
             setLoading(false);
+            clearTimeout(timer);
 
             if (currentUser) {
                 // Sync profile in background
@@ -40,7 +50,10 @@ export function useAuth() {
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(timer);
+        };
     }, []);
 
     return {
